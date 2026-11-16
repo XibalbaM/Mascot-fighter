@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Mascot Fighter - 2D Street Fighter in Phaser</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Teko:wght@600;700&display=swap" rel="stylesheet">
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+
+    body {
+      background: radial-gradient(circle at center, #1b162b 0%, #0d0a14 100%);
+      color: #f1f2f6;
+      font-family: 'Press Start 2P', monospace;
+      overflow-x: hidden;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-start;
+    }
+
+    header {
+      width: 100%;
+      text-align: center;
+      padding: 10px 0 6px;
+      background: linear-gradient(180deg, rgba(255, 60, 0, 0.25) 0%, transparent 100%);
+      border-bottom: 2px solid #ff4757;
+      box-shadow: 0 4px 20px rgba(255, 71, 87, 0.2);
+    }
+
+    .title-banner {
+      font-family: 'Teko', sans-serif;
+      font-size: 42px;
+      letter-spacing: 4px;
+      text-transform: uppercase;
+      font-weight: 700;
+      color: #fff;
+      text-shadow:
+        0 0 10px #ff4757,
+        0 0 20px #ff6b81,
+        2px 2px 0px #2f3542;
+      line-height: 1;
+      margin-bottom: 2px;
+    }
+
+    .subtitle {
+      font-size: 11px;
+      color: #ffa502;
+      text-shadow: 1px 1px 0 #000;
+      letter-spacing: 2px;
+    }
+
+    #game-wrapper {
+      position: relative;
+      margin: 8px auto;
+      border: 4px solid #ff4757;
+      border-radius: 8px;
+      box-shadow: 
+        0 0 30px rgba(255, 71, 87, 0.4),
+        0 10px 40px rgba(0, 0, 0, 0.8),
+        inset 0 0 15px rgba(0, 0, 0, 0.7);
+      background: #000;
+      overflow: hidden;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+
+    #game-container {
+      width: 960px;
+      height: 540px;
+    }
+
+    #game-container canvas {
+      display: block;
+      width: 100% !important;
+      height: 100% !important;
+      image-rendering: pixelated;
+      image-rendering: crisp-edges;
+    }
+
+    /* Scanlines effect overlay */
+    .scanlines {
+      pointer-events: none;
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(
+        rgba(18, 16, 16, 0) 50%, 
+        rgba(0, 0, 0, 0.25) 50%
+      ), linear-gradient(
+        90deg,
+        rgba(255, 0, 0, 0.03),
+        rgba(0, 255, 0, 0.01),
+        rgba(0, 0, 255, 0.03)
+      );
+      background-size: 100% 3px, 6px 100%;
+      z-index: 10;
+      opacity: 0.75;
+      transition: opacity 0.2s;
+    }
+
+    .scanlines.off {
+      display: none;
+    }
+
+    /* Controls & Help Bar */
+    .panel-container {
+      width: 960px;
+      max-width: 96vw;
+      margin-top: 6px;
+      margin-bottom: 20px;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+
+    .card {
+      background: rgba(22, 19, 36, 0.9);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      border-radius: 6px;
+      padding: 12px 14px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+    }
+
+    .card-title {
+      font-size: 12px;
+      color: #eccc68;
+      margin-bottom: 8px;
+      border-bottom: 1px solid rgba(236, 204, 104, 0.3);
+      padding-bottom: 4px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .key-group {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      font-size: 9px;
+      line-height: 1.6;
+      color: #ced6e0;
+    }
+
+    .key-item {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      background: rgba(0, 0, 0, 0.3);
+      padding: 2px 6px;
+      border-radius: 3px;
+    }
+
+    .kbd {
+      background: #2f3542;
+      color: #fff;
+      padding: 1px 5px;
+      border-radius: 3px;
+      border: 1px solid #747d8c;
+      font-family: inherit;
+      font-size: 9px;
+      box-shadow: 0 2px 0 #1e272e;
+    }
+
+    .special-badge {
+      color: #ff6b81;
+      font-weight: bold;
+    }
+
+    .settings-bar {
+      grid-column: 1 / -1;
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+      background: rgba(15, 12, 25, 0.95);
+      padding: 8px 12px;
+      border-radius: 6px;
+      border: 1px solid rgba(255, 71, 87, 0.3);
+    }
+
+    .btn-toggle {
+      background: #2f3542;
+      color: #f1f2f6;
+      border: 1px solid #57606f;
+      padding: 6px 10px;
+      font-family: 'Press Start 2P', monospace;
+      font-size: 8px;
+      cursor: pointer;
+      border-radius: 4px;
+      transition: all 0.15s ease;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    .btn-toggle:hover {
+      background: #57606f;
+      border-color: #ffa502;
+      color: #ffa502;
+    }
+
+    .btn-toggle.active {
+      background: #ff4757;
+      border-color: #ff6b81;
+      color: #fff;
+      box-shadow: 0 0 8px rgba(255, 71, 87, 0.6);
+    }
+
+    @media (max-width: 990px) {
+      #game-wrapper {
+        width: 95vw;
+        height: calc(95vw * (540 / 960));
+      }
+      #game-container {
+        width: 100%;
+        height: 100%;
+      }
+      .panel-container {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="title-banner">MASCOT FIGHTER</div>
+    <div class="subtitle">RETRO 2D ARCADE COMBAT ENGINE</div>
+  </header>
+
+  <div id="game-wrapper">
+    <div id="game-container"></div>
+    <div id="scanlines" class="scanlines"></div>
+  </div>
+
+  <div class="panel-container">
+    <div class="card">
+      <div class="card-title">
+        <span>PLAYER 1 (REX)</span>
+        <span style="color:#ff4757;">DINO BRAWLER</span>
+      </div>
+      <div class="key-group">
+        <div class="key-item"><span class="kbd">A</span><span class="kbd">D</span> Walk / Block</div>
+        <div class="key-item"><span class="kbd">W</span> Jump</div>
+        <div class="key-item"><span class="kbd">S</span> Crouch</div>
+        <div class="key-item"><span class="kbd">J</span> Light Punch</div>
+        <div class="key-item"><span class="kbd">U</span> Heavy Punch</div>
+        <div class="key-item"><span class="kbd">K</span> Light Kick</div>
+        <div class="key-item"><span class="kbd">I</span> Heavy Kick (Sweep)</div>
+        <div class="key-item"><span class="kbd">O</span> <span class="special-badge">Fireball (Hadouken)</span></div>
+        <div class="key-item"><span class="kbd">L</span> <span class="special-badge">Dragon Uppercut</span></div>
+        <div class="key-item"><span class="kbd">Space</span> <span class="special-badge">SUPER MOVE (100% EX)</span></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">
+        <span>PLAYER 2 / CPU (SPARKY)</span>
+        <span style="color:#2ed573;">CYBER THUNDER</span>
+      </div>
+      <div class="key-group">
+        <div class="key-item"><span class="kbd">←</span><span class="kbd">→</span> Walk / Block</div>
+        <div class="key-item"><span class="kbd">↑</span> Jump</div>
+        <div class="key-item"><span class="kbd">↓</span> Crouch</div>
+        <div class="key-item"><span class="kbd">Num1</span> / <span class="kbd">B</span> Light Punch</div>
+        <div class="key-item"><span class="kbd">Num4</span> / <span class="kbd">G</span> Heavy Punch</div>
+        <div class="key-item"><span class="kbd">Num2</span> / <span class="kbd">N</span> Light Kick</div>
+        <div class="key-item"><span class="kbd">Num5</span> / <span class="kbd">H</span> Heavy Kick</div>
+        <div class="key-item"><span class="kbd">Num6</span> / <span class="kbd">Y</span> <span class="special-badge">Spark Ball</span></div>
+        <div class="key-item"><span class="kbd">Num3</span> / <span class="kbd">T</span> <span class="special-badge">Somersault Kick</span></div>
+        <div class="key-item"><span class="kbd">Enter</span> <span class="special-badge">SUPER MOVE</span></div>
+      </div>
+    </div>
+
+    <div class="settings-bar">
+      <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
+        <span style="font-size:9px; color:#a4b0be;">MODE:</span>
+        <button id="btn-mode-cpu" class="btn-toggle active">P1 vs CPU</button>
+        <button id="btn-mode-2p" class="btn-toggle">2 Players Local</button>
+        <button id="btn-mode-dummy" class="btn-toggle">Training Dummy</button>
+      </div>
+
+      <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
+        <button id="btn-char-select" class="btn-toggle">Fighters [ESC]</button>
+        <button id="btn-hitboxes" class="btn-toggle">Hitboxes [H]</button>
+        <button id="btn-scanlines" class="btn-toggle active">CRT Filter</button>
+        <button id="btn-touch" class="btn-toggle">Virtual Pad</button>
+        <button id="btn-reset" class="btn-toggle">Reset [R]</button>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>
