@@ -34,16 +34,16 @@ export const CHARACTERS = {
       claw: '#f5cd79'          // Golden talons
     },
     stats: {
-      hp: 95,
-      defense: 65,
-      offense: 88,
-      speed: 86,
-      attackSpeed: 90
+      hp: 130,
+      defense: 100,
+      offense: 100,
+      speed: 100,
+      attackSpeed: 100
     },
     specials: ['Phoenix Flare (Fireball)', 'Rising Fire Wing (Uppercut)'],
     description: 'A blazing mythical bird with rapid wing-blade strikes, fiery plumage, and swift aerial combustion.'
   },
-
+  
   lion: {
     id: 'lion',
     name: 'DOUALION',
