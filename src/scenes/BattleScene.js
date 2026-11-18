@@ -25,6 +25,7 @@ export class BattleScene extends Phaser.Scene {
 
   create() {
     this.projectiles = [];
+    this.pendingKOs = []; // fighters knocked out during the current frame
     this.roundState = 'INTRO';
     this.currentRound = 1;
     this.roundTime = GAME_CONFIG.ROUND_TIME;
@@ -161,6 +162,7 @@ export class BattleScene extends Phaser.Scene {
   startRound() {
     this.roundState = 'INTRO';
     this.roundTime = GAME_CONFIG.ROUND_TIME;
+    this.pendingKOs = [];
 
     // Reset fighter positions
     const p1StartX = GAME_CONFIG.STAGE_WIDTH / 2 - 160;
@@ -206,6 +208,10 @@ export class BattleScene extends Phaser.Scene {
     // 2. Combat System & Collisions
     const isFrozen = this.combatSystem.update(dt, this.p1, this.p2, this.projectiles);
 
+    // Every KO triggered by this frame's collisions is resolved together:
+    // one KO = a winner, two KOs on the same frame = DRAW.
+    this.resolvePendingKOs();
+
     // If game is in hitstop freeze, fighters pause animation and movement!
     if (!isFrozen) {
       this.p1.update(dt);
@@ -242,10 +248,32 @@ export class BattleScene extends Phaser.Scene {
     this.projectiles.push(proj);
   }
 
+  // Called by Fighter.triggerDefeat(). The KO is only queued here: it is resolved
+  // once per frame in resolvePendingKOs(), so the first fighter to die in a frame
+  // does not automatically lose when the other one dies on the same frame.
   triggerKO(loser) {
     if (this.roundState === 'ROUND_OVER' || this.roundState === 'MATCH_OVER') return;
+    if (!this.pendingKOs.includes(loser)) {
+      this.pendingKOs.push(loser);
+    }
+  }
 
+  resolvePendingKOs() {
+    if (this.pendingKOs.length === 0) return;
+
+    const losers = this.pendingKOs;
+    this.pendingKOs = [];
+
+    if (this.roundState === 'ROUND_OVER' || this.roundState === 'MATCH_OVER') return;
     this.roundState = 'ROUND_OVER';
+
+    // Both fighters KO'd on the same frame: DRAW (no round point for anyone)
+    if (losers.length >= 2) {
+      this.handleDoubleKO();
+      return;
+    }
+
+    const loser = losers[0];
     const winner = (loser === this.p1) ? this.p2 : this.p1;
     winner.wins++;
 
@@ -270,6 +298,16 @@ export class BattleScene extends Phaser.Scene {
           this.startRound();
         });
       }
+    });
+  }
+
+  handleDoubleKO() {
+    this.ui.showBanner('DOUBLE K.O.!', 'DRAW GAME!', '#70a1ff', 2000);
+
+    // Same flow as a time-over draw: nobody scores, next round
+    this.time.delayedCall(2400, () => {
+      this.currentRound++;
+      this.startRound();
     });
   }
 
