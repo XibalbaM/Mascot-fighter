@@ -24,9 +24,21 @@ export class CombatSystem {
     // 1. Pushbox Collision (Separation)
     this.resolvePushboxes(p1, p2);
 
-    // 2. Direct Melee Attack Collisions
-    this.checkMeleeAttack(p1, p2);
-    this.checkMeleeAttack(p2, p1);
+    // 2. Direct Melee Attack Collisions (2 phases)
+    // Phase 1: detect every hit. Nobody takes damage yet, so a fighter's
+    // attack is never cancelled before it has been checked.
+    const hits = [];
+    this.detectMeleeHit(p1, p2, hits);
+    this.detectMeleeHit(p2, p1, hits);
+
+    // Phase 2: apply the damage once both attacks have been detected
+    for (const { attack, defender, hitbox } of hits) {
+      attack.hasHit = true;
+      const result = defender.takeDamage(hitbox);
+
+      // Micro hitstop
+      this.triggerHitstop(result.blocked ? GAME_CONFIG.HITSTOP.BLOCK : hitbox.hitstop);
+    }
 
     // 3. Projectile Collisions
     this.checkProjectiles(projectiles, p1, p2);
@@ -89,24 +101,17 @@ export class CombatSystem {
     }
   }
 
-  checkMeleeAttack(attacker, defender) {
+  // Phase 1: only detects the hit and stores it. takeDamage is called later in update().
+  detectMeleeHit(attacker, defender, hits) {
     const hitbox = attacker.getActiveHitbox();
-    if (!hitbox || attacker.currentAttack?.hasHit) return;
+    const attack = attacker.currentAttack;
+    if (!hitbox || !attack || attack.hasHit) return;
 
     const hurtboxes = defender.getHurtBoxes();
     if (!hurtboxes || hurtboxes.length === 0) return;
 
-    for (let i = 0; i < hurtboxes.length; i++) {
-      const hb = hurtboxes[i];
-      if (this.intersectAABB(hitbox, hb)) {
-        // Hit detected!
-        attacker.currentAttack.hasHit = true;
-        const result = defender.takeDamage(hitbox);
-
-        // Micro hitstop
-        this.triggerHitstop(result.blocked ? GAME_CONFIG.HITSTOP.BLOCK : hitbox.hitstop);
-        break;
-      }
+    if (hurtboxes.some(hb => this.intersectAABB(hitbox, hb))) {
+      hits.push({ attacker, defender, attack, hitbox });
     }
   }
 
