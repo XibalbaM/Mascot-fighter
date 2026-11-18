@@ -8,6 +8,8 @@ export class AIController {
 
   update(dt, aiFighter, opponent, gameMode) {
     // Reset edge triggers each frame
+    if (gameMode === 'PVP') return;
+
     aiFighter.input.justLightPunch = false;
     aiFighter.input.justHeavyPunch = false;
     aiFighter.input.justLightKick = false;
