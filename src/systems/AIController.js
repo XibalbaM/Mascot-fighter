@@ -23,8 +23,6 @@ export class AIController {
       return;
     }
 
-    if (gameMode !== 'CPU') return;
-
     this.decisionTimer += dt;
     const distX = Math.abs(aiFighter.x - opponent.x);
     const oppIsAttacking = opponent.state === 'ATTACK';
