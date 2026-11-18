@@ -720,7 +720,7 @@ export class Fighter {
     const isHoldingBack = (this.facing === 1 && this.input.left) || (this.facing === -1 && this.input.right);
     let isGuarding = false;
 
-    if (isHoldingBack && this.isGrounded) {
+    if (isHoldingBack && this.isGrounded && this.input.left !== this.input.right && this.state === FIGHTER_STATE.WALK_BACK) {
       if (hitbox.attackType === 'low' && this.isCrouching) {
         isGuarding = true; // Crouching blocks Low!
       } else if (hitbox.attackType === 'overhead' && !this.isCrouching) {
