@@ -252,15 +252,24 @@ export class CharacterSelectScene extends Phaser.Scene {
 
   createRosterGrid() {
     const W = this.width;
-    const gridY = 405;
-    const container = this.add.container(W / 2, gridY);
+
+    // Grid layout: 4 columns x N rows, sized to fit between the two player cards
+    // (the free space in the middle is 260px wide: x = 350 to 610).
+    const cols = 4;
+    const rows = Math.ceil(CHARACTER_LIST.length / cols);
+    const slotSize = 56;
+    const slotSpacing = 60;
+    const shelfW = cols * slotSpacing + 12;
+    const shelfH = rows * slotSpacing + 36;
+
+    const container = this.add.container(W / 2, 395);
 
     // Background shelf
-    const shelfBg = this.add.rectangle(0, 0, 240, 100, 0x120f24, 0.9).setOrigin(0.5);
+    const shelfBg = this.add.rectangle(0, 0, shelfW, shelfH, 0x120f24, 0.9).setOrigin(0.5);
     shelfBg.setStrokeStyle(2, 0x57606f);
     container.add(shelfBg);
 
-    const title = this.add.text(0, -38, 'ROSTER SELECTION', {
+    const title = this.add.text(0, -shelfH / 2 + 12, 'ROSTER SELECTION', {
       fontFamily: '"Press Start 2P"',
       fontSize: '8px',
       color: '#ffa502'
@@ -269,18 +278,16 @@ export class CharacterSelectScene extends Phaser.Scene {
 
     this.portraitSlots = [];
 
-    // Active Characters Slots
-    const totalSlots = 2; // Rex, Sparky (expandable as more characters are added)
-    const slotSpacing = 82;
-    const startX = -((totalSlots - 1) * slotSpacing) / 2;
+    const startX = -((cols - 1) * slotSpacing) / 2;
+    const startY = -shelfH / 2 + 24 + slotSize / 2;
 
     CHARACTER_LIST.forEach((char, idx) => {
-      const slotX = startX + idx * slotSpacing;
-      const slotY = 8;
+      const slotX = startX + (idx % cols) * slotSpacing;
+      const slotY = startY + Math.floor(idx / cols) * slotSpacing;
 
       // Portrait Image
       const img = this.add.image(slotX, slotY, `portrait_${char.id}`).setOrigin(0.5);
-      img.setDisplaySize(70, 70);
+      img.setDisplaySize(slotSize, slotSize);
       img.setInteractive({ useHandCursor: true });
 
       img.on('pointerdown', () => {
@@ -308,28 +315,28 @@ export class CharacterSelectScene extends Phaser.Scene {
       this.portraitSlots.push({ idx, x: slotX, y: slotY, charId: char.id, img });
     });
 
-    // P1 Selector Box (Red/Gold Frame)
-    this.p1Cursor = this.add.rectangle(0, 0, 76, 76).setOrigin(0.5);
+    // P1 Selector Box (Red/Gold Frame) - tag inside the top-left corner
+    this.p1Cursor = this.add.rectangle(0, 0, slotSize + 6, slotSize + 6).setOrigin(0.5);
     this.p1Cursor.setStrokeStyle(3, 0xff4757);
-    const p1Tag = this.add.text(-24, -42, 'P1', {
+    const p1Tag = this.add.text(-(slotSize / 2), -(slotSize / 2), 'P1', {
       fontFamily: '"Press Start 2P"',
-      fontSize: '9px',
+      fontSize: '8px',
       color: '#ffffff',
       backgroundColor: '#ff4757',
-      padding: { x: 4, y: 2 }
+      padding: { x: 3, y: 2 }
     });
     this.p1CursorContainer = this.add.container(0, 0, [this.p1Cursor, p1Tag]);
     container.add(this.p1CursorContainer);
 
-    // P2 Selector Box (Blue/Cyan Frame)
-    this.p2Cursor = this.add.rectangle(0, 0, 76, 76).setOrigin(0.5);
+    // P2 Selector Box (Blue/Cyan Frame) - tag inside the top-right corner
+    this.p2Cursor = this.add.rectangle(0, 0, slotSize + 6, slotSize + 6).setOrigin(0.5);
     this.p2Cursor.setStrokeStyle(3, 0x00d2d3);
-    const p2Tag = this.add.text(10, -42, 'P2', {
+    const p2Tag = this.add.text(slotSize / 2 - 22, -(slotSize / 2), 'P2', {
       fontFamily: '"Press Start 2P"',
-      fontSize: '9px',
+      fontSize: '8px',
       color: '#ffffff',
       backgroundColor: '#00d2d3',
-      padding: { x: 4, y: 2 }
+      padding: { x: 3, y: 2 }
     });
     this.p2CursorContainer = this.add.container(0, 0, [this.p2Cursor, p2Tag]);
     container.add(this.p2CursorContainer);
