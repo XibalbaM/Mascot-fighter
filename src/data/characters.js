@@ -2,14 +2,14 @@
  * Mascot Fighter - 8 Character Roster Configuration
  * 
  * Roster:
- * 1. Phoenix (Pyra)
- * 2. Lion (Leo)
- * 3. Palm Tree (Coco)
- * 4. Pig (Barnaby)
- * 5. Squid (Kraken)
- * 6. Husky (Blizz)
- * 7. Dragon (Draco)
- * 8. Hippo (Tank)
+ * 1. Phoenix
+ * 2. Lion
+ * 3. Palm Tree
+ * 4. Pig
+ * 5. Squid
+ * 6. Husky
+ * 7. Dragon
+ * 8. Hippo
  * 
  * Note: Base stats are provided with distinct playstyle baselines and will be updated
  * with custom stats from the user.
