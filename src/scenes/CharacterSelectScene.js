@@ -163,8 +163,8 @@ export class CharacterSelectScene extends Phaser.Scene {
     platform.setStrokeStyle(1.5, isP1 ? 0xff4757 : 0x00d2d3, 0.6);
     container.add(platform);
 
-    // Animated Sprite Preview
-    const sprite = this.add.sprite(0, -56, 'rex_idle_0');
+    // Animated Sprite Preview (first roster character until updatePreview picks the real one)
+    const sprite = this.add.sprite(0, -56, `${CHARACTER_LIST[0].id}_idle_0`);
     sprite.setScale(isP1 ? 2.4 : -2.4, 2.4);
     sprite.setOrigin(0.5, 0.88);
     container.add(sprite);
