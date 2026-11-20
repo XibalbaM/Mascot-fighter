@@ -6,6 +6,11 @@ export class InputManager {
     this.keyState = {};
     this.prevKeyState = {};
 
+    // Presses made while the game is frozen by a hitstop are kept here
+    // (key code -> timestamp) so they are not lost.
+    this.pressBuffer = {};
+    this.bufferMs = 300; // how long a buffered press stays valid
+
     // Motion input history buffers for P1 and P2
     this.p1History = [];
     this.p2History = [];
@@ -37,6 +42,9 @@ export class InputManager {
         e.preventDefault();
       }
       this.keyState[e.code] = true;
+      if (!e.repeat) {
+        this.pressBuffer[e.code] = Date.now();
+      }
 
       // Global hotkeys
       if (e.code === 'KeyH') {
@@ -60,9 +68,15 @@ export class InputManager {
       this.updatePlayer2(p2);
     }
 
-    // Save previous state for justPressed edge detection
-    this.prevKeyState = { ...this.keyState };
-    this.prevVirtualInput = { ...this.virtualInput };
+    // While a hitstop freezes the fighters, keep the "just pressed" information:
+    // the presses are then seen on the first frame where the fighters update again.
+    const frozen = !!this.scene.combatSystem?.isHitstopped();
+    if (!frozen) {
+      this.pressBuffer = {};
+      // Save previous state for justPressed edge detection
+      this.prevKeyState = { ...this.keyState };
+      this.prevVirtualInput = { ...this.virtualInput };
+    }
   }
 
   isDown(code) {
@@ -70,7 +84,9 @@ export class InputManager {
   }
 
   justPressed(code) {
-    return !!this.keyState[code] && !this.prevKeyState[code];
+    const t = this.pressBuffer[code];
+    const buffered = t !== undefined && (Date.now() - t) < this.bufferMs;
+    return (!!this.keyState[code] && !this.prevKeyState[code]) || buffered;
   }
 
   justPressedVirtual(name) {
