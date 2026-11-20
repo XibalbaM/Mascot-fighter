@@ -718,9 +718,16 @@ export class Fighter {
     // Standing block: holding Back while standing blocks High / Mid attacks (not Low)
     // Crouching block: holding Down-Back blocks Mid / Low attacks (not Overhead)
     const isHoldingBack = (this.facing === 1 && this.input.left) || (this.facing === -1 && this.input.right);
+    // Guard only from a "free" state (not while attacking, hurt, airborne, getting up...).
+    // BLOCK is included so the next hits of a string are blocked during the blockstun.
+    const canGuardState = this.state === FIGHTER_STATE.IDLE
+                       || this.state === FIGHTER_STATE.WALK_FWD
+                       || this.state === FIGHTER_STATE.WALK_BACK
+                       || this.state === FIGHTER_STATE.CROUCH
+                       || this.state === FIGHTER_STATE.BLOCK;
     let isGuarding = false;
 
-    if (isHoldingBack && this.isGrounded && this.input.left !== this.input.right && this.state === FIGHTER_STATE.WALK_BACK) {
+    if (isHoldingBack && this.isGrounded && this.input.left !== this.input.right && canGuardState) {
       if (hitbox.attackType === 'low' && this.isCrouching) {
         isGuarding = true; // Crouching blocks Low!
       } else if (hitbox.attackType === 'overhead' && !this.isCrouching) {
