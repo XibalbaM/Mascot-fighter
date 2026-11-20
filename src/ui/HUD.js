@@ -131,7 +131,7 @@ export class HUD {
     this.p2SuperBg.setStrokeStyle(2, 0x747d8c);
     this.container.add(this.p2SuperBg);
 
-    this.p2SuperBar = this.scene.add.rectangle(W - 35, superY, 0, superH, 0x3498db).setOrigin(1, 0.5);
+    this.p2SuperBar = this.scene.add.rectangle(W - 35 - superW, superY, 0, superH, 0x3498db).setOrigin(0, 0.5);
     this.container.add(this.p2SuperBar);
 
     this.p2SuperLabel = this.scene.add.text(W - 38, superY - 18, 'EX GAUGE', {
