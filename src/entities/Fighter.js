@@ -544,6 +544,7 @@ export class Fighter {
 
   startSpecialFireball() {
     this.state = FIGHTER_STATE.ATTACK;
+    this.canCancelIntoSpecial = false;
     this.currentAttack = {
       name: 'HADOUKEN',
       animKey: 'special_hadouken',
@@ -562,6 +563,7 @@ export class Fighter {
 
   startSpecialUppercut() {
     this.state = FIGHTER_STATE.ATTACK;
+    this.canCancelIntoSpecial = false;
     this.currentAttack = {
       name: 'SHORYUKEN',
       animKey: 'special_shoryuken',
@@ -590,6 +592,7 @@ export class Fighter {
   executeSuperMove() {
     this.superMeter = 0;
     this.state = FIGHTER_STATE.ATTACK;
+    this.canCancelIntoSpecial = false;
     this.currentAttack = {
       name: 'SUPER_COMBO',
       animKey: 'special_shoryuken',
@@ -681,7 +684,7 @@ export class Fighter {
           this.startSpecialUppercut();
           return;
         }
-        if (this.input.justFireball) {
+        if (this.input.justFireball && atk.name !== 'HADOUKEN') {
           this.startSpecialFireball();
           return;
         }
@@ -773,7 +776,7 @@ export class Fighter {
     this.gainSuper(Math.round(incomingDamage * 0.5));
     if (hitbox.attacker) {
       hitbox.attacker.gainSuper(Math.round(incomingDamage * 0.8));
-      hitbox.attacker.canCancelIntoSpecial = true; // Enables combo canceling!
+      if (!hitbox.isProjectile) hitbox.attacker.canCancelIntoSpecial = true; // Enables combo canceling (melee hits only)!
       hitbox.attacker.comboCounter++;
     }
 
