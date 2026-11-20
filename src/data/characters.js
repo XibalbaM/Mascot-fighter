@@ -62,11 +62,11 @@ export const CHARACTERS = {
       claw: '#ecf0f1'          // Sharp ivory claws
     },
     stats: {
-      hp: 105,
-      defense: 78,
-      offense: 92,
-      speed: 70,
-      attackSpeed: 74
+      hp: 87,
+      defense: 62,
+      offense: 87,
+      speed: 89,
+      attackSpeed: 70
     },
     specials: ['Lion Roar Blast', 'Royal Rising Claw'],
     description: 'A regal and imposing lion martial artist with a ferocious mane, devastating heavy paws, and relentless pressure.'
