@@ -680,7 +680,7 @@ export class Fighter {
           this.executeSuperMove();
           return;
         }
-        if (this.input.justUppercut) {
+        if (this.input.justUppercut && this.isGrounded) {
           this.startSpecialUppercut();
           return;
         }
