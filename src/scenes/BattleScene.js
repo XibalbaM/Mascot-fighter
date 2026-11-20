@@ -175,7 +175,7 @@ export class BattleScene extends Phaser.Scene {
     this.projectiles = [];
 
     // Announce Round
-    const roundLabel = (this.currentRound >= 3) ? 'FINAL ROUND' : `ROUND ${this.currentRound}`;
+    const roundLabel = ((this.p1.wins === GAME_CONFIG.ROUNDS_TO_WIN - 1) && (this.p2.wins === GAME_CONFIG.ROUNDS_TO_WIN - 1)) ? 'FINAL ROUND' : `ROUND ${this.currentRound}`;
     soundManager.playRoundFight();
     this.ui.showBanner(roundLabel, 'GET READY...', '#ff4757', 900);
 
