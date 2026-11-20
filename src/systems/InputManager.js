@@ -46,8 +46,8 @@ export class InputManager {
         this.pressBuffer[e.code] = Date.now();
       }
 
-      // Global hotkeys
-      if (e.code === 'KeyH') {
+      // Global hotkeys (KeyH is used by P2 as an alternate heavy kick, so debug uses KeyP)
+      if (e.code === 'KeyP') {
         this.scene.debugOverlay.toggle();
       } else if (e.code === 'KeyR') {
         this.scene.restartMatch();
@@ -221,7 +221,7 @@ export class InputManager {
     const now = Date.now();
     const recent = history.filter(h => now - h.time < 400).map(h => h.dir);
     const str = recent.join('');
-    return str.includes('236') || str.includes('26');
+    return str.includes('236');
   }
 
   checkDP(history, facing) {
