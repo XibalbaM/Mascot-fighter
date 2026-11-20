@@ -789,8 +789,9 @@ export class Fighter {
       this.scene.cameras.main.shake(80, 0.006);
     }
 
-    const sparkX = (this.x + (hitbox.attacker ? hitbox.attacker.x : this.x)) / 2;
+    const sparkX = hitbox.isProjectile ? hitbox.x : (this.x + (hitbox.attacker ? hitbox.attacker.x : this.x)) / 2;
     const sparkY = this.y - 40;
+
     this.scene.particleManager.spawnHitSpark(sparkX, sparkY);
     this.scene.ui.showDamageText(this.x, this.y - 70, incomingDamage, hitbox.attacker ? hitbox.attacker.comboCounter : 1);
 
