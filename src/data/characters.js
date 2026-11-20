@@ -19,7 +19,7 @@ export const CHARACTERS = {
   phoenix: {
     id: 'phoenix',
     name: 'PHÉNIKTARACE',
-    title: 'FLAME IMMORTELLE',
+    title: 'VENERABLE PIAF IMMORTEL',
     archetype: 'Aerial / Flame Striker',
     avatarColor: '#ff4757',
     palette: {
@@ -46,7 +46,7 @@ export const CHARACTERS = {
   
   lion: {
     id: 'lion',
-    name: 'DOUALION',
+    name: 'DEWAELION',
     title: 'SIMBA',
     archetype: 'Heavy Striker / Pressure',
     avatarColor: '#f39c12',
@@ -74,8 +74,8 @@ export const CHARACTERS = {
 
   palmtree: {
     id: 'palmtree',
-    name: 'PALM TREE',
-    title: 'TROPICAL BRAWLER',
+    name: 'PALMITO',
+    title: 'PROVENANCE : JARDIN DES PLANTES',
     archetype: 'Zoner / Wacky Long-Limb',
     avatarColor: '#2ed573',
     palette: {
@@ -102,8 +102,8 @@ export const CHARACTERS = {
 
   pig: {
     id: 'pig',
-    name: 'PIG',
-    title: 'THE IRON TUSK',
+    name: 'PIGROS',
+    title: 'EN VENTE A LA BOUCHERIE DES ARENES',
     archetype: 'Heavy Brawler / Sumo',
     avatarColor: '#fd79a8',
     palette: {
@@ -130,8 +130,8 @@ export const CHARACTERS = {
 
   squid: {
     id: 'squid',
-    name: 'SQUID',
-    title: 'CEPHALOPOD SHADOW',
+    name: 'POULPY',
+    title: 'CUISINÉ PROFESSIONNEL',
     archetype: 'Trickster / Ninja',
     avatarColor: '#8e44ad',
     palette: {
@@ -158,8 +158,8 @@ export const CHARACTERS = {
 
   husky: {
     id: 'husky',
-    name: 'HUSKY',
-    title: 'THE BLIZZARD FANG',
+    name: 'ISO',
+    title: 'FIGURANT',
     archetype: 'Agile Rushdown / Frost',
     avatarColor: '#0984e3',
     palette: {
@@ -186,8 +186,8 @@ export const CHARACTERS = {
 
   dragon: {
     id: 'dragon',
-    name: 'DRAGON',
-    title: 'THE MYTHIC DRAKE',
+    name: '???',
+    title: 'TEXT OVERFLOW',
     archetype: 'Balanced All-Rounder',
     avatarColor: '#10ac84',
     palette: {
@@ -214,8 +214,8 @@ export const CHARACTERS = {
 
   hippo: {
     id: 'hippo',
-    name: 'HIPPO',
-    title: 'THE UNSTOPPABLE TANK',
+    name: 'HYPOLITE',
+    title: 'NOT ENOUGH MARTYRED YET',
     archetype: 'Colossus / Grappler',
     avatarColor: '#57606f',
     palette: {
