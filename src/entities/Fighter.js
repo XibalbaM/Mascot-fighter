@@ -781,7 +781,7 @@ export class Fighter {
     }
 
     // Sound and particles
-    if (incomingDamage >= 14 || hitbox.isSuper) {
+    if (hitbox.hitstop >= GAME_CONFIG.HITSTOP.HEAVY) {
       soundManager.playHeavyHit();
       this.scene.cameras.main.shake(160, 0.015);
     } else {
