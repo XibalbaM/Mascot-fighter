@@ -16,7 +16,7 @@ export const GAME_CONFIG = {
     WALK_SPEED_FWD: 220,
     WALK_SPEED_BACK: 160,
     DASH_SPEED: 420,
-    MAX_HEALTH: 100,
+    MAX_HEALTH: 130,
     MAX_SUPER: 100,
     BLOCK_DAMAGE_RATIO: 0.15, // 15% chip damage on block
     KNOCKBACK_LIGHT: 140,
