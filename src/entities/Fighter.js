@@ -106,7 +106,7 @@ export class Fighter {
     // Phaser Sprite
     this.sprite = scene.add.sprite(x, y, `${charId}_idle_0`);
     this.sprite.setScale(GAME_CONFIG.FIGHTER.SCALE);
-    this.sprite.setOrigin(0.5, 0.88);
+    this.sprite.setOrigin(0.5, 1.0);
     this.sprite.play(`${charId}_idle`);
 
     // Shadow on the ground

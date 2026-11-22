@@ -3,8 +3,8 @@ import { CHARACTERS } from '../data/characters.js';
 export class SpriteGenerator {
   constructor(scene) {
     this.scene = scene;
-    this.frameWidth = 80;
-    this.frameHeight = 80;
+    this.frameWidth = 240;
+    this.frameHeight = 160;
   }
 
   generateAll() {
@@ -171,17 +171,14 @@ export class SpriteGenerator {
       by += 16;
       scaleY = 0.72;
     } else if (animName === 'jump') {
-      by -= (frameIndex === 1 ? 16 : 8);
+      // already handled by physic, bug patched
     } else if (animName === 'jump_punch' || animName === 'jump_kick') {
-      by -= 12;
+      // same bug patched
     } else if (animName === 'crouch_punch' || animName === 'crouch_kick') {
       by += 16;
       scaleY = 0.72;
     } else if (animName === 'shoryuken') {
-      if (frameIndex === 0) { by += 10; scaleY = 0.8; }
-      else if (frameIndex === 1) { by -= 18; }
-      else if (frameIndex === 2) { by -= 28; }
-      else if (frameIndex === 3) { by -= 12; }
+      // same bug as the jump
     } else if (animName === 'hurt_high') {
       bx -= (frameIndex + 1) * 3;
       by += 2;
@@ -688,12 +685,13 @@ export class SpriteGenerator {
       }
     } else if (animName === 'shoryuken') {
       if (frameIndex === 1 || frameIndex === 2) {
-        this.p(ctx, bx + 4, armY - 24, 10, 32, pal.cloth);
-        this.p(ctx, bx + 3, armY - 36, 13, 14, pal.primary);
-        this.p(ctx, bx + 6, armY - 40, 7, 6, pal.claw);
-        this.p(ctx, bx + 1, armY - 38, 17, 4, pal.specialColor);
-        this.p(ctx, bx + 2, armY - 26, 4, 18, pal.specialColor);
-        this.p(ctx, bx + 13, armY - 18, 4, 16, pal.specialColor);
+        this.p(ctx, bx + 12, armY + 2, 8, 8, pal.cloth);
+        this.p(ctx, bx + 18, armY - 24, 10, 32, pal.cloth);
+        this.p(ctx, bx + 17, armY - 36, 13, 14, pal.primary);
+        this.p(ctx, bx + 20, armY - 40, 7, 6, pal.claw);
+        this.p(ctx, bx + 15, armY - 38, 17, 4, pal.specialColor);
+        this.p(ctx, bx + 16, armY - 26, 4, 18, pal.specialColor);
+        this.p(ctx, bx + 27, armY - 18, 4, 16, pal.specialColor);
       } else {
         this.drawNormalGuard(ctx, bx, armY, pal);
       }
