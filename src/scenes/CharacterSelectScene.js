@@ -164,9 +164,9 @@ export class CharacterSelectScene extends Phaser.Scene {
     container.add(platform);
 
     // Animated Sprite Preview (first roster character until updatePreview picks the real one)
-    const sprite = this.add.sprite(0, -56, `${CHARACTER_LIST[0].id}_idle_0`);
+    const sprite = this.add.sprite(0, -50, `${CHARACTER_LIST[0].id}_idle_0`);
     sprite.setScale(isP1 ? 2.4 : -2.4, 2.4);
-    sprite.setOrigin(0.5, 0.88);
+    sprite.setOrigin(0.51, 1.0);
     container.add(sprite);
 
     // Character Name
