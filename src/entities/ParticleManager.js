@@ -53,4 +53,20 @@ export class ParticleManager {
       });
     }
   }
+
+  spawnFireballLaunch(x, y, direction, tintColor = 0xffa502) {
+    const ring = this.scene.add.circle(x, y, 8, tintColor, 0.8);
+    ring.setStrokeStyle(3, 0xffffff);
+    ring.setDepth(12);
+    this.scene.tweens.add({
+      targets: ring,
+      x: x + direction * 14,
+      scaleX: 3,
+      scaleY: 3,
+      alpha: 0,
+      duration: 250,
+      ease: 'Cubic.easeOut',
+      onComplete: () => ring.destroy()
+    });
+  }
 }

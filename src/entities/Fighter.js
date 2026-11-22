@@ -664,6 +664,10 @@ export class Fighter {
           const spawnX = this.x + this.facing * 45;
           const spawnY = this.y - 36;
           this.scene.spawnProjectile(this, spawnX, spawnY, this.facing);
+
+          // NOUVEAU : effet de lancer
+          const color = parseInt((this.charConfig.palette.specialColor || '#ffa502').replace('#', ''), 16);
+          this.scene.particleManager.spawnFireballLaunch(spawnX, spawnY, this.facing, color);
         }
 
         // Uppercut rising launch
