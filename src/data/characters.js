@@ -94,7 +94,7 @@ export const CHARACTERS = {
       defense: 72,
       offense: 80,
       speed: 64,
-      attackSpeed: 76
+      attackSpeed: 50
     },
     specials: ['Coconut Cannon', 'Tropical Hurricane'],
     description: 'A wildly charismatic palm tree mascot whose fanned leafy fronds, whipping trunk, and coconut artillery dominate spacing.'

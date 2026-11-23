@@ -752,6 +752,11 @@ export class Fighter {
       const chipDamage = Math.max(1, Math.round(incomingDamage * GAME_CONFIG.FIGHTER.BLOCK_DAMAGE_RATIO));
       this.health = Math.max(0, this.health - chipDamage);
 
+      if (this.health <= 0) {
+      this.triggerDefeat();
+      return { blocked: true, damage: incomingDamage, ko: true};
+      }
+
       // Block pushback & stun
       this.vx = -this.facing * (hitbox.knockbackX * 0.7);
       this.state = FIGHTER_STATE.BLOCK;
