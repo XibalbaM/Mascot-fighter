@@ -414,7 +414,7 @@ export class Fighter {
           knockbackY: 0,
           attackType: 'low',
           isKnockdown: false,
-          hitbox: { x: 30, y: -8, w: 38, h: 16 }
+          hitbox: { x: 30 * GAME_CONFIG.FIGHTER.SCALE / 2.2, y: -1 * GAME_CONFIG.FIGHTER.SCALE / 2.2, w: 58 * GAME_CONFIG.FIGHTER.SCALE / 2.2, h: 16 * GAME_CONFIG.FIGHTER.SCALE / 2.2 }
         });
         return true;
       }
@@ -432,7 +432,7 @@ export class Fighter {
           knockbackY: -220,
           attackType: 'low',
           isKnockdown: true,
-          hitbox: { x: 36, y: -8, w: 45, h: 16 }
+          hitbox: { x: 36 * GAME_CONFIG.FIGHTER.SCALE / 2.2, y: -1 * GAME_CONFIG.FIGHTER.SCALE / 2.2, w: 52 * GAME_CONFIG.FIGHTER.SCALE / 2.2, h: 16 * GAME_CONFIG.FIGHTER.SCALE / 2.2 }
         });
         return true;
       }
@@ -452,7 +452,7 @@ export class Fighter {
         knockbackY: 0,
         isKnockdown: false,
         attackType: 'mid',
-        hitbox: { x: 32, y: -48, w: 30, h: 20 }
+        hitbox: { x: 32 * GAME_CONFIG.FIGHTER.SCALE / 2.2, y: -86 * GAME_CONFIG.FIGHTER.SCALE / 2.2, w: 49 * GAME_CONFIG.FIGHTER.SCALE / 2.2, h: 16 * GAME_CONFIG.FIGHTER.SCALE / 2.2 }
       });
       return true;
     }
@@ -470,7 +470,7 @@ export class Fighter {
         knockbackY: 0,
         isKnockdown: false,
         attackType: 'mid',
-        hitbox: { x: 42, y: -48, w: 38, h: 24 }
+        hitbox: { x: 42 * GAME_CONFIG.FIGHTER.SCALE / 2.2, y: -90 * GAME_CONFIG.FIGHTER.SCALE / 2.2, w: 64 * GAME_CONFIG.FIGHTER.SCALE / 2.2, h: 31 * GAME_CONFIG.FIGHTER.SCALE / 2.2 }
       });
       return true;
     }
@@ -488,7 +488,7 @@ export class Fighter {
         knockbackY: 0,
         isKnockdown: false,
         attackType: 'mid',
-        hitbox: { x: 34, y: -30, w: 32, h: 22 }
+        hitbox: { x: 34 * GAME_CONFIG.FIGHTER.SCALE / 2.2, y: -51 * GAME_CONFIG.FIGHTER.SCALE / 2.2, w: 28 * GAME_CONFIG.FIGHTER.SCALE / 2.2, h: 20 * GAME_CONFIG.FIGHTER.SCALE / 2.2 }
       });
       return true;
     }
@@ -506,7 +506,7 @@ export class Fighter {
         knockbackY: 0,
         isKnockdown: false,
         attackType: 'mid',
-        hitbox: { x: 44, y: -40, w: 42, h: 26 }
+        hitbox: { x: 44 * GAME_CONFIG.FIGHTER.SCALE / 2.2, y: -59 * GAME_CONFIG.FIGHTER.SCALE / 2.2, w: 45 * GAME_CONFIG.FIGHTER.SCALE / 2.2, h: 22 * GAME_CONFIG.FIGHTER.SCALE / 2.2 }
       });
       return true;
     }
@@ -581,7 +581,7 @@ export class Fighter {
       attackType: 'mid',
       isKnockdown: true,
       hasHit: false,
-      hitbox: { x: 26, y: -70, w: 40, h: 65 }
+      hitbox: { x: 26 * GAME_CONFIG.FIGHTER.SCALE / 2.2, y: -172 * GAME_CONFIG.FIGHTER.SCALE / 2.2, w: 41 * GAME_CONFIG.FIGHTER.SCALE / 2.2, h: 110 * GAME_CONFIG.FIGHTER.SCALE / 2.2 }
     };
     this.isInvincible = true;
     this.invincibilityTimer = 160; // Dragon punch invincibility on startup!
@@ -611,7 +611,7 @@ export class Fighter {
       isKnockdown: true,
       hasHit: false,
       isSuper: true,
-      hitbox: { x: 30, y: -65, w: 46, h: 70 }
+      hitbox: { x: 30 * GAME_CONFIG.FIGHTER.SCALE / 2.2, y: -172 * GAME_CONFIG.FIGHTER.SCALE / 2.2, w: 37 * GAME_CONFIG.FIGHTER.SCALE / 2.2, h: 110 * GAME_CONFIG.FIGHTER.SCALE / 2.2 }
     };
 
     // Super Flash effects
@@ -919,10 +919,10 @@ export class Fighter {
   getPushBox() {
     const h = this.isCrouching ? 60 : this.height;
     return {
-      x: this.x - this.width / 2,
-      y: this.y - h,
-      w: this.width,
-      h: h
+      x: this.x - this.width * GAME_CONFIG.FIGHTER.SCALE / 3,
+      y: this.y - h * GAME_CONFIG.FIGHTER.SCALE / 1.5,
+      w: this.width * GAME_CONFIG.FIGHTER.SCALE / 1.5,
+      h: h * GAME_CONFIG.FIGHTER.SCALE / 1.5
     };
   }
 
@@ -935,27 +935,27 @@ export class Fighter {
     if (this.isCrouching) {
       boxes.push({
         name: 'crouch_body',
-        x: this.x - 22,
-        y: this.y - 55,
-        w: 44,
-        h: 55
+        x: this.x - 22 * GAME_CONFIG.FIGHTER.SCALE / 1.5,
+        y: this.y - 55 * GAME_CONFIG.FIGHTER.SCALE / 1.5,
+        w: 44 * GAME_CONFIG.FIGHTER.SCALE / 1.5,
+        h: 55 * GAME_CONFIG.FIGHTER.SCALE / 1.5
       });
     } else {
       // Head
       boxes.push({
         name: 'head',
-        x: this.x - 16,
-        y: this.y - 92,
-        w: 32,
-        h: 28
+        x: this.x - 16 * GAME_CONFIG.FIGHTER.SCALE / 1.5,
+        y: this.y - 92 * GAME_CONFIG.FIGHTER.SCALE / 1.5,
+        w: 32 * GAME_CONFIG.FIGHTER.SCALE / 1.5,
+        h: 28 * GAME_CONFIG.FIGHTER.SCALE / 1.5
       });
       // Torso & legs
       boxes.push({
         name: 'body',
-        x: this.x - 22,
-        y: this.y - 64,
-        w: 44,
-        h: 64
+        x: this.x - 22 * GAME_CONFIG.FIGHTER.SCALE / 1.5,
+        y: this.y - 64 * GAME_CONFIG.FIGHTER.SCALE / 1.5,
+        w: 44 * GAME_CONFIG.FIGHTER.SCALE / 1.5,
+        h: 64 * GAME_CONFIG.FIGHTER.SCALE / 1.5
       });
     }
     return boxes;
