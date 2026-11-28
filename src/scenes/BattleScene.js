@@ -8,6 +8,8 @@ import { CombatSystem } from '../systems/CombatSystem.js';
 import { InputManager } from '../systems/InputManager.js';
 import { AIController } from '../systems/AIController.js';
 import { CameraController } from '../systems/CameraController.js';
+import { TICK_MS } from '../sim/constants.js';
+import { createRNG } from '../sim/rng.js';
 import { HUD } from '../ui/HUD.js';
 import { DebugOverlay } from '../ui/DebugOverlay.js';
 import { VirtualControls } from '../ui/VirtualControls.js';
@@ -21,15 +23,21 @@ export class BattleScene extends Phaser.Scene {
     this.p1CharId = data?.p1CharId || 'dragon';
     this.p2CharId = data?.p2CharId || 'phoenix';
     this.gameMode = data?.gameMode || 'CPU'; // 'CPU', 'PVP', 'TRAINING'
+    // Match seed: drives the sim RNG (AI). Fixed by default so a local match is
+    // deterministic run-to-run; online play overrides it with the host's seed.
+    this.seed = (data?.seed ?? 0xC0FFEE) >>> 0;
   }
 
   create() {
     this.projectiles = [];
-    this.pendingKOs = []; // fighters knocked out during the current frame
+    this.pendingKOs = []; // fighters knocked out during the current tick
     this.roundState = 'INTRO';
     this.currentRound = 1;
     this.roundTime = GAME_CONFIG.ROUND_TIME;
-    this.roundToken = 0; // bumped every round/match to invalidate stale callbacks
+    this.roundToken = 0; // bumped every round/match to invalidate stale scheduled callbacks
+    this.tick = 0;       // sim tick counter (60 Hz)
+    this.accum = 0;      // fixed-tick accumulator (ms of unconsumed real time)
+    this.scheduled = []; // tick-based callbacks replacing time.delayedCall in game flow
 
     // 1. Stage Parallax Setup
     this.createStage();
@@ -38,7 +46,8 @@ export class BattleScene extends Phaser.Scene {
     this.particleManager = new ParticleManager(this);
     this.combatSystem = new CombatSystem(this);
     this.inputManager = new InputManager(this);
-    this.aiController = new AIController();
+    this.rng = createRNG(this.seed);
+    this.aiController = new AIController(this.rng);
     this.cameraController = new CameraController(this);
 
     // 3. Spawn Fighters
@@ -167,9 +176,8 @@ export class BattleScene extends Phaser.Scene {
   }
 
   startRound() {
-    // Invalidate pending callbacks (FIGHT! banner, KO flow...) from a previous round
+    // Invalidate pending scheduled callbacks (FIGHT! banner, KO flow...) from a previous round
     this.roundToken++;
-    const token = this.roundToken;
     this.roundState = 'INTRO';
     this.roundTime = GAME_CONFIG.ROUND_TIME;
     this.pendingKOs = [];
@@ -189,24 +197,68 @@ export class BattleScene extends Phaser.Scene {
     soundManager.playRoundFight();
     this.ui.showBanner(roundLabel, 'GET READY...', '#ff4757', 900);
 
-    this.time.delayedCall(1100, () => {
-      if (token !== this.roundToken) return;
+    this.scheduleTicks(1100, () => {
       soundManager.playRoundFight();
       this.ui.showBanner('FIGHT!', '', '#ffa502', 600);
       this.roundState = 'FIGHTING';
     });
   }
 
-  update(time, delta) {
-    const dt = Math.min(delta, 50); // Clamp delta to avoid huge physics jumps
+  // Tick-based replacement for this.time.delayedCall in game-flow code: the
+  // callback fires after `ms` worth of 60 Hz sim ticks, and only if the round
+  // token is still current (startRound/restartMatch bump it to invalidate
+  // stale transitions). Wall-clock scheduling here would desync replays/netplay.
+  scheduleTicks(ms, fn) {
+    this.scheduled.push({
+      ticksLeft: Math.max(1, Math.round(ms / TICK_MS)),
+      token: this.roundToken,
+      fn
+    });
+  }
 
-    // 1. Process Inputs
+  runScheduled() {
+    for (let i = this.scheduled.length - 1; i >= 0; i--) {
+      const s = this.scheduled[i];
+      s.ticksLeft--;
+      if (s.ticksLeft <= 0) {
+        this.scheduled.splice(i, 1);
+        if (s.token === this.roundToken) s.fn();
+      }
+    }
+  }
+
+  update(time, delta) {
+    // Fixed-tick simulation: the sim only ever advances in exact TICK_MS steps,
+    // so the game state is identical at any display refresh rate (60/144/240 Hz)
+    // — the core requirement for deterministic lockstep netcode.
+    this.accum += Math.min(delta, 100);
+    let steps = 0;
+    while (this.accum >= TICK_MS && steps < 6) {
+      this.accum -= TICK_MS;
+      this.simTick();
+      steps++;
+    }
+    if (steps === 6) this.accum = 0; // heavy stall: drop the backlog instead of spiraling
+
+    // Presentation-only systems run once per rendered frame
+    const frameDt = Math.min(delta, 50); // clamp to avoid huge camera jumps
+    this.cameraController.update(this.p1, this.p2, frameDt);
+    this.ui.update(this.p1, this.p2, this.roundTime);
+    this.debugOverlay.update(this.p1, this.p2, this.projectiles);
+  }
+
+  // One deterministic 60 Hz simulation step.
+  simTick() {
+    const dt = TICK_MS;
+    this.tick++;
+
+    // 1. Process Inputs (sampled once per tick, not per rendered frame)
     if (this.roundState === 'FIGHTING') {
       this.inputManager.update(dt, this.p1, this.p2, this.gameMode);
       this.aiController.update(dt, this.p2, this.p1, this.gameMode);
 
       // Decrement Timer (training mode never runs out of time)
-      this.roundTime -= dt / 1000;
+      this.roundTime -= TICK_MS / 1000;
       if (this.roundTime <= 0) {
         if (this.gameMode === 'TRAINING') {
           this.roundTime = GAME_CONFIG.ROUND_TIME;
@@ -223,9 +275,17 @@ export class BattleScene extends Phaser.Scene {
     // 2. Combat System & Collisions
     const isFrozen = this.combatSystem.update(dt, this.p1, this.p2, this.projectiles);
 
-    // Every KO triggered by this frame's collisions is resolved together:
-    // one KO = a winner, two KOs on the same frame = DRAW.
+    // Every KO triggered by this tick's collisions is resolved together:
+    // one KO = a winner, two KOs on the same tick = DRAW.
     this.resolvePendingKOs();
+
+    // Hitstop freezes the sim; freeze the Phaser anims with it so non-attack
+    // visuals don't drift from the hitbox timeline. Attack frames are driven
+    // from the sim timer (Fighter.updateAttackFrame) and freeze automatically.
+    for (const p of [this.p1, this.p2]) {
+      if (isFrozen) p.sprite.anims.pause();
+      else p.sprite.anims.resume();
+    }
 
     // If game is in hitstop freeze, fighters pause animation and movement!
     if (!isFrozen) {
@@ -242,14 +302,8 @@ export class BattleScene extends Phaser.Scene {
       }
     }
 
-    // 3. Camera Dynamic Tracking
-    this.cameraController.update(this.p1, this.p2, dt);
-
-    // 4. UI & HUD Update
-    this.ui.update(this.p1, this.p2, this.roundTime);
-
-    // 5. Hitbox Debugger Overlay
-    this.debugOverlay.update(this.p1, this.p2, this.projectiles);
+    // 3. Tick-based round/match flow transitions
+    this.runScheduled();
   }
 
   clearFighterInputs(fighter) {
@@ -281,11 +335,10 @@ export class BattleScene extends Phaser.Scene {
 
     if (this.roundState === 'ROUND_OVER' || this.roundState === 'MATCH_OVER') return;
     this.roundState = 'ROUND_OVER';
-    const token = this.roundToken;
 
-    // Both fighters KO'd on the same frame: DRAW (no round point for anyone)
+    // Both fighters KO'd on the same tick: DRAW (no round point for anyone)
     if (losers.length >= 2) {
-      this.handleDoubleKO(token);
+      this.handleDoubleKO();
       return;
     }
 
@@ -295,8 +348,7 @@ export class BattleScene extends Phaser.Scene {
     // Training mode: the dummy gets back up where it fell, the round never ends
     if (this.gameMode === 'TRAINING') {
       this.ui.showBanner('K.O.!', 'DUMMY GETS BACK UP', '#70a1ff', 1200);
-      this.time.delayedCall(1300, () => {
-        if (token !== this.roundToken) return;
+      this.scheduleTicks(1300, () => {
         loser.resetRound(loser.x, loser.facing);
         this.roundState = 'FIGHTING';
       });
@@ -308,8 +360,7 @@ export class BattleScene extends Phaser.Scene {
     const isPerfect = (winner.health === winner.maxHealth);
     this.ui.showBanner('K.O.!', isPerfect ? 'PERFECT VICTORY!' : '', '#ff4757', 1500);
 
-    this.time.delayedCall(1600, () => {
-      if (token !== this.roundToken) return;
+    this.scheduleTicks(1600, () => {
       winner.triggerVictory();
 
       if (winner.wins >= GAME_CONFIG.ROUNDS_TO_WIN) {
@@ -317,27 +368,24 @@ export class BattleScene extends Phaser.Scene {
         this.roundState = 'MATCH_OVER';
         this.ui.showBanner(`${winner.name} WINS!`, 'CHAMPION!', '#ffa502', 3000);
 
-        this.time.delayedCall(3500, () => {
-          if (token !== this.roundToken) return;
+        this.scheduleTicks(3500, () => {
           this.restartMatch();
         });
       } else {
         // Next round
         this.currentRound++;
-        this.time.delayedCall(1500, () => {
-          if (token !== this.roundToken) return;
+        this.scheduleTicks(1500, () => {
           this.startRound();
         });
       }
     });
   }
 
-  handleDoubleKO(token = this.roundToken) {
+  handleDoubleKO() {
     this.ui.showBanner('DOUBLE K.O.!', 'DRAW GAME!', '#70a1ff', 2000);
 
     // Same flow as a time-over draw: nobody scores, next round
-    this.time.delayedCall(2400, () => {
-      if (token !== this.roundToken) return;
+    this.scheduleTicks(2400, () => {
       this.currentRound++;
       this.startRound();
     });
@@ -360,9 +408,7 @@ export class BattleScene extends Phaser.Scene {
       this.ui.showBanner('TIME OVER', 'DRAW GAME!', '#70a1ff', 2000);
     }
 
-    const token = this.roundToken;
-    this.time.delayedCall(2400, () => {
-      if (token !== this.roundToken) return;
+    this.scheduleTicks(2400, () => {
       if (this.p1.wins >= GAME_CONFIG.ROUNDS_TO_WIN || this.p2.wins >= GAME_CONFIG.ROUNDS_TO_WIN) {
         this.restartMatch();
       } else {

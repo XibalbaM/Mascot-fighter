@@ -1,6 +1,8 @@
 import { GAME_CONFIG } from '../config.js';
 import { soundManager } from '../audio/SoundManager.js';
 import { getCharacter } from '../data/characters.js';
+import { ANIMATIONS, frameDurationMs } from '../data/animations.js';
+import { getAttackHitbox, getHurtboxSpec, getPushboxSpec, getProjectileSpawn } from '../data/hitboxes.js';
 
 export const FIGHTER_STATE = {
   IDLE: 'IDLE',
@@ -20,24 +22,28 @@ export const FIGHTER_STATE = {
 
 // Normal attack frame data, indexed by stance and input. Kept as data (not code)
 // so balance tweaks don't require touching the state machine.
+// startup/active are NOT stored here: resolveAttackPhases() derives them from
+// the animation's hit frames (ANIMATIONS.hitFrames), so the hitbox is active
+// exactly while the animation shows the limb extended. Hitboxes themselves are
+// per-character model data in data/hitboxes.js.
 const ATTACK_DATA = {
   standing: {
-    lightPunch: { animKey: 'light_punch', damage: 6, startup: 70, active: 90, recovery: 100, hitstop: GAME_CONFIG.HITSTOP.LIGHT, hitstun: 200, blockstun: 160, knockbackX: 120, knockbackY: 0, isKnockdown: false, attackType: 'mid', hitbox: { x: 32, y: -86, w: 49, h: 16 } },
-    heavyPunch: { animKey: 'heavy_punch', damage: 15, startup: 130, active: 140, recovery: 200, hitstop: GAME_CONFIG.HITSTOP.HEAVY, hitstun: 300, blockstun: 230, knockbackX: 260, knockbackY: 0, isKnockdown: false, attackType: 'mid', hitbox: { x: 42, y: -90, w: 64, h: 31 } },
-    lightKick: { animKey: 'light_kick', damage: 7, startup: 90, active: 100, recovery: 120, hitstop: GAME_CONFIG.HITSTOP.LIGHT, hitstun: 210, blockstun: 170, knockbackX: 140, knockbackY: 0, isKnockdown: false, attackType: 'mid', hitbox: { x: 34, y: -51, w: 28, h: 20 } },
-    heavyKick: { animKey: 'heavy_kick', damage: 16, startup: 140, active: 140, recovery: 220, hitstop: GAME_CONFIG.HITSTOP.HEAVY, hitstun: 310, blockstun: 240, knockbackX: 280, knockbackY: 0, isKnockdown: false, attackType: 'mid', hitbox: { x: 44, y: -59, w: 45, h: 22 } }
+    lightPunch: { animKey: 'light_punch', damage: 6, recovery: 100, hitstop: GAME_CONFIG.HITSTOP.LIGHT, hitstun: 200, blockstun: 160, knockbackX: 120, knockbackY: 0, isKnockdown: false, attackType: 'mid' },
+    heavyPunch: { animKey: 'heavy_punch', damage: 15, recovery: 200, hitstop: GAME_CONFIG.HITSTOP.HEAVY, hitstun: 300, blockstun: 230, knockbackX: 260, knockbackY: 0, isKnockdown: false, attackType: 'mid' },
+    lightKick: { animKey: 'light_kick', damage: 7, recovery: 120, hitstop: GAME_CONFIG.HITSTOP.LIGHT, hitstun: 210, blockstun: 170, knockbackX: 140, knockbackY: 0, isKnockdown: false, attackType: 'mid' },
+    heavyKick: { animKey: 'heavy_kick', damage: 16, recovery: 220, hitstop: GAME_CONFIG.HITSTOP.HEAVY, hitstun: 310, blockstun: 240, knockbackX: 280, knockbackY: 0, isKnockdown: false, attackType: 'mid' }
   },
   crouching: {
-    lightPunch: { animKey: 'crouch_punch', damage: 5, startup: 80, active: 100, recovery: 110, hitstop: GAME_CONFIG.HITSTOP.LIGHT, hitstun: 180, blockstun: 150, knockbackX: 100, knockbackY: 0, isKnockdown: false, attackType: 'mid', hitbox: { x: 28, y: -22, w: 30, h: 18 } },
-    heavyPunch: { animKey: 'crouch_punch', damage: 12, startup: 120, active: 130, recovery: 160, hitstop: GAME_CONFIG.HITSTOP.HEAVY, hitstun: 260, blockstun: 210, knockbackX: 180, knockbackY: 0, isKnockdown: false, attackType: 'mid', hitbox: { x: 32, y: -22, w: 34, h: 22 } },
-    lightKick: { animKey: 'crouch_kick', damage: 6, startup: 90, active: 110, recovery: 120, hitstop: GAME_CONFIG.HITSTOP.LIGHT, hitstun: 200, blockstun: 170, knockbackX: 110, knockbackY: 0, isKnockdown: false, attackType: 'low', hitbox: { x: 30, y: -1, w: 58, h: 16 } },
-    heavyKick: { animKey: 'crouch_kick', damage: 14, startup: 140, active: 150, recovery: 240, hitstop: GAME_CONFIG.HITSTOP.HEAVY, hitstun: 320, blockstun: 240, knockbackX: 250, knockbackY: -220, isKnockdown: true, attackType: 'low', hitbox: { x: 36, y: -1, w: 52, h: 16 } }
+    lightPunch: { animKey: 'crouch_punch', damage: 5, recovery: 110, hitstop: GAME_CONFIG.HITSTOP.LIGHT, hitstun: 180, blockstun: 150, knockbackX: 100, knockbackY: 0, isKnockdown: false, attackType: 'mid' },
+    heavyPunch: { animKey: 'crouch_punch', damage: 12, recovery: 160, hitstop: GAME_CONFIG.HITSTOP.HEAVY, hitstun: 260, blockstun: 210, knockbackX: 180, knockbackY: 0, isKnockdown: false, attackType: 'mid' },
+    lightKick: { animKey: 'crouch_kick', damage: 6, recovery: 120, hitstop: GAME_CONFIG.HITSTOP.LIGHT, hitstun: 200, blockstun: 170, knockbackX: 110, knockbackY: 0, isKnockdown: false, attackType: 'low' },
+    heavyKick: { animKey: 'crouch_kick', damage: 14, recovery: 240, hitstop: GAME_CONFIG.HITSTOP.HEAVY, hitstun: 320, blockstun: 240, knockbackX: 250, knockbackY: -220, isKnockdown: true, attackType: 'low' }
   },
   air: {
-    lightPunch: { animKey: 'jump_punch', damage: 7, startup: 80, active: 180, recovery: 100, hitstop: GAME_CONFIG.HITSTOP.LIGHT, hitstun: 280, blockstun: 200, knockbackX: 160, knockbackY: 0, isKnockdown: false, attackType: 'overhead', hitbox: { x: 26, y: -45, w: 32, h: 28 } },
-    heavyPunch: { animKey: 'jump_punch', damage: 12, startup: 80, active: 180, recovery: 100, hitstop: GAME_CONFIG.HITSTOP.HEAVY, hitstun: 280, blockstun: 200, knockbackX: 160, knockbackY: 0, isKnockdown: false, attackType: 'overhead', hitbox: { x: 26, y: -45, w: 32, h: 28 } },
-    lightKick: { animKey: 'jump_kick', damage: 8, startup: 90, active: 200, recovery: 120, hitstop: GAME_CONFIG.HITSTOP.LIGHT, hitstun: 300, blockstun: 220, knockbackX: 200, knockbackY: 0, isKnockdown: false, attackType: 'overhead', hitbox: { x: 30, y: -25, w: 36, h: 28 } },
-    heavyKick: { animKey: 'jump_kick', damage: 14, startup: 90, active: 200, recovery: 120, hitstop: GAME_CONFIG.HITSTOP.HEAVY, hitstun: 300, blockstun: 220, knockbackX: 200, knockbackY: 0, isKnockdown: false, attackType: 'overhead', hitbox: { x: 30, y: -25, w: 36, h: 28 } }
+    lightPunch: { animKey: 'jump_punch', damage: 7, recovery: 100, hitstop: GAME_CONFIG.HITSTOP.LIGHT, hitstun: 280, blockstun: 200, knockbackX: 160, knockbackY: 0, isKnockdown: false, attackType: 'overhead' },
+    heavyPunch: { animKey: 'jump_punch', damage: 12, recovery: 100, hitstop: GAME_CONFIG.HITSTOP.HEAVY, hitstun: 280, blockstun: 200, knockbackX: 160, knockbackY: 0, isKnockdown: false, attackType: 'overhead' },
+    lightKick: { animKey: 'jump_kick', damage: 8, recovery: 120, hitstop: GAME_CONFIG.HITSTOP.LIGHT, hitstun: 300, blockstun: 220, knockbackX: 200, knockbackY: 0, isKnockdown: false, attackType: 'overhead' },
+    heavyKick: { animKey: 'jump_kick', damage: 14, recovery: 120, hitstop: GAME_CONFIG.HITSTOP.HEAVY, hitstun: 300, blockstun: 220, knockbackX: 200, knockbackY: 0, isKnockdown: false, attackType: 'overhead' }
   }
 };
 
@@ -128,9 +134,11 @@ export class Fighter {
       justSuper: false,
     };
 
-    // Pushbox and Hurtbox definitions (relative to x, y)
-    this.width = GAME_CONFIG.FIGHTER.WIDTH;
-    this.height = GAME_CONFIG.FIGHTER.HEIGHT;
+    // Pushbox / hurtboxes are per-character model data (data/hitboxes.js),
+    // resolved in getPushBox() / getHurtBoxes().
+    // While attacking, the sprite frame is driven manually from the sim timer
+    // (see startAttackAnim) so visuals stay locked to the hitbox window.
+    this.manualAttackFrames = false;
 
     // Phaser Sprite
     this.sprite = scene.add.sprite(x, y, `${charId}_idle_0`);
@@ -173,6 +181,9 @@ export class Fighter {
   }
 
   update(dt) {
+    // dt is always exactly one sim tick (TICK_MS = 1000/60): BattleScene drives
+    // the sim through a fixed-tick accumulator, so every timer below advances
+    // deterministically regardless of the display refresh rate.
     const delta = dt / 1000;
 
     // Update timers
@@ -196,8 +207,9 @@ export class Fighter {
         this.isInvincible = false;
         this.sprite.setAlpha(1.0);
       } else {
-        // Flash during invincibility
-        this.sprite.setAlpha(Math.floor(Date.now() / 60) % 2 === 0 ? 0.4 : 1.0);
+        // Flash during invincibility — blink derived from the tick-based timer,
+        // never from the wall clock (Date.now would desync replays/netplay)
+        this.sprite.setAlpha(Math.floor(this.invincibilityTimer / 60) % 2 === 0 ? 0.4 : 1.0);
       }
     }
 
@@ -347,9 +359,11 @@ export class Fighter {
   handleAirborneInputs() {
     // Air attack triggers (jump-ins are overheads)
     if (this.input.justLightPunch || this.input.justHeavyPunch) {
-      this.startAttack('jump_punch', this.input.justHeavyPunch ? ATTACK_DATA.air.heavyPunch : ATTACK_DATA.air.lightPunch);
+      const heavy = this.input.justHeavyPunch;
+      this.startAttack('jump_punch', heavy ? ATTACK_DATA.air.heavyPunch : ATTACK_DATA.air.lightPunch, 'air', heavy ? 'heavyPunch' : 'lightPunch');
     } else if (this.input.justLightKick || this.input.justHeavyKick) {
-      this.startAttack('jump_kick', this.input.justHeavyKick ? ATTACK_DATA.air.heavyKick : ATTACK_DATA.air.lightKick);
+      const heavy = this.input.justHeavyKick;
+      this.startAttack('jump_kick', heavy ? ATTACK_DATA.air.heavyKick : ATTACK_DATA.air.lightKick, 'air', heavy ? 'heavyKick' : 'lightKick');
     }
   }
 
@@ -373,12 +387,13 @@ export class Fighter {
     }
 
     // Normal attacks come from the ATTACK_DATA table, picked by stance
-    const table = this.isCrouching ? ATTACK_DATA.crouching : ATTACK_DATA.standing;
+    const stance = this.isCrouching ? 'crouching' : 'standing';
+    const table = ATTACK_DATA[stance];
     for (const key of ATTACK_PRIORITY) {
       const justFlag = 'just' + key.charAt(0).toUpperCase() + key.slice(1);
       if (this.input[justFlag]) {
         const data = table[key];
-        this.startAttack(data.animKey, data);
+        this.startAttack(data.animKey, data, stance, key);
         return true;
       }
     }
@@ -386,20 +401,39 @@ export class Fighter {
     return false;
   }
 
-  startAttack(animKey, attackData) {
+  // Derive the startup/active/recovery windows from the animation's hit
+  // frames, so the hitbox exists exactly while the animation shows the limb
+  // extended. Everything is scaled by attackSpeedFactor like before, and the
+  // sprite frame is driven from the same timer (updateAttackFrame), so the
+  // visual extension and the hitbox window can never drift apart.
+  resolveAttackPhases(animKey, recoveryMs) {
+    const anim = ANIMATIONS[animKey];
+    const [f0, f1] = anim.hitFrames || [0, anim.frames - 1];
+    const frameDur = 1000 / anim.frameRate;
+    const factor = this.attackSpeedFactor;
+    return {
+      startup: Math.max(30, Math.round(f0 * frameDur / factor)),
+      active: Math.max(30, Math.round((f1 + 1 - f0) * frameDur / factor)),
+      recovery: Math.max(40, Math.round(recoveryMs / factor))
+    };
+  }
+
+  startAttack(animKey, attackData, stance, key) {
     this.state = FIGHTER_STATE.ATTACK;
     const scaledDamage = Math.max(1, Math.round(attackData.damage * this.offenseFactor));
-    const scaledStartup = Math.max(30, Math.round(attackData.startup / this.attackSpeedFactor));
-    const scaledRecovery = Math.max(40, Math.round(attackData.recovery / this.attackSpeedFactor));
+    const phases = this.resolveAttackPhases(animKey, attackData.recovery);
 
     this.currentAttack = {
       ...attackData,
       damage: scaledDamage,
-      startup: scaledStartup,
-      recovery: scaledRecovery,
+      startup: phases.startup,
+      active: phases.active,
+      recovery: phases.recovery,
       animKey: animKey,
+      hitbox: getAttackHitbox(this.charId, stance, key),
       phase: 'startup', // startup -> active -> recovery
       timer: 0,
+      animTimer: 0, // monotonic ms since attack start — drives the sprite frame
       hasHit: false,
     };
     this.activeHitbox = null;
@@ -413,40 +447,71 @@ export class Fighter {
       this.lungeVx = animKey.includes('heavy') ? this.facing * (60 * this.speedFactor) : 0;
     }
 
-    this.playAnimation(animKey);
+    this.startAttackAnim(animKey);
     soundManager.playWhoosh(animKey.includes('heavy') ? 0.9 : 1.3);
+  }
+
+  // Attack animations are played frame-by-frame from the sim timer instead of
+  // the Phaser clock: the displayed frame and the hitbox phase come from the
+  // same atk.timer, and both freeze during hitstop (the sim doesn't advance).
+  startAttackAnim(animKey) {
+    this.manualAttackFrames = true;
+    this.sprite.anims.stop();
+    this.updateAttackFrame();
+  }
+
+  // Returns the animation frame the attack should display at animTimer, and
+  // sets it on the sprite. animTimer is monotonic (unlike atk.timer, which
+  // resets at each phase transition), so the frame advances continuously
+  // through startup -> active -> recovery.
+  updateAttackFrame() {
+    const atk = this.currentAttack;
+    if (!atk) return -1;
+    const anim = ANIMATIONS[atk.animKey];
+    if (!anim) return -1;
+    const fd = frameDurationMs(atk.animKey, this.attackSpeedFactor);
+    const frame = Math.min(anim.frames - 1, Math.floor(atk.animTimer / fd));
+    this.sprite.setTexture(`${this.charId}_${anim.prefix || atk.animKey}_${frame}`);
+    return frame;
   }
 
   startSpecialFireball() {
     this.state = FIGHTER_STATE.ATTACK;
     this.canCancelIntoSpecial = false;
+    // hitFrames [2,3]: the projectile fires exactly when the release frame
+    // starts displaying
+    const phases = this.resolveAttackPhases('special_hadouken', 240);
     this.currentAttack = {
       name: 'HADOUKEN',
       animKey: 'special_hadouken',
       phase: 'startup',
-      startup: Math.max(50, Math.round(160 / this.attackSpeedFactor)),
-      active: 80,
-      recovery: Math.max(60, Math.round(240 / this.attackSpeedFactor)),
+      startup: Math.max(50, phases.startup),
+      active: phases.active,
+      recovery: Math.max(60, phases.recovery),
       timer: 0,
+      animTimer: 0, // monotonic ms since attack start — drives the sprite frame
       hasFiredProjectile: false,
     };
     this.vx = 0;
     this.activeHitbox = null;
-    this.playAnimation('special_hadouken');
+    this.startAttackAnim('special_hadouken');
     soundManager.playFireball();
   }
 
   startSpecialUppercut() {
     this.state = FIGHTER_STATE.ATTACK;
     this.canCancelIntoSpecial = false;
+    // hitFrames [1,3]: the rising fist column is active for the whole rise
+    const phases = this.resolveAttackPhases('special_shoryuken', 320);
     this.currentAttack = {
       name: 'SHORYUKEN',
       animKey: 'special_shoryuken',
       phase: 'startup',
-      startup: Math.max(30, Math.round(80 / this.attackSpeedFactor)),
-      active: 280,
-      recovery: Math.max(70, Math.round(320 / this.attackSpeedFactor)),
+      startup: Math.max(30, phases.startup),
+      active: phases.active,
+      recovery: Math.max(70, phases.recovery),
       timer: 0,
+      animTimer: 0, // monotonic ms since attack start — drives the sprite frame
       damage: Math.max(1, Math.round(22 * this.offenseFactor)),
       hitstop: GAME_CONFIG.HITSTOP.HEAVY,
       hitstun: 360,
@@ -456,11 +521,11 @@ export class Fighter {
       attackType: 'mid',
       isKnockdown: true,
       hasHit: false,
-      hitbox: { x: 26, y: -172, w: 41, h: 110 }
+      hitbox: getAttackHitbox(this.charId, 'special', 'shoryuken')
     };
     this.isInvincible = true;
     this.invincibilityTimer = 160; // Dragon punch invincibility on startup!
-    this.playAnimation('special_shoryuken');
+    this.startAttackAnim('special_shoryuken');
     soundManager.playUppercut();
   }
 
@@ -468,14 +533,16 @@ export class Fighter {
     this.superMeter = 0;
     this.state = FIGHTER_STATE.ATTACK;
     this.canCancelIntoSpecial = false;
+    const phases = this.resolveAttackPhases('special_shoryuken', 280);
     this.currentAttack = {
       name: 'SUPER_COMBO',
       animKey: 'special_shoryuken',
       phase: 'startup',
-      startup: Math.max(40, Math.round(140 / this.attackSpeedFactor)),
-      active: 380,
-      recovery: Math.max(70, Math.round(280 / this.attackSpeedFactor)),
+      startup: Math.max(40, phases.startup),
+      active: phases.active,
+      recovery: Math.max(70, phases.recovery),
       timer: 0,
+      animTimer: 0, // monotonic ms since attack start — drives the sprite frame
       damage: Math.max(1, Math.round(42 * this.offenseFactor)),
       hitstop: GAME_CONFIG.HITSTOP.SUPER,
       hitstun: 420,
@@ -486,7 +553,7 @@ export class Fighter {
       isKnockdown: true,
       hasHit: false,
       isSuper: true,
-      hitbox: { x: 30, y: -172, w: 37, h: 110 }
+      hitbox: getAttackHitbox(this.charId, 'special', 'super')
     };
 
     // Super Flash effects
@@ -499,7 +566,7 @@ export class Fighter {
 
     // Surge forward
     this.vx = this.facing * 340;
-    this.playAnimation('special_shoryuken');
+    this.startAttackAnim('special_shoryuken');
   }
 
   handleAttackUpdate(dt) {
@@ -510,9 +577,17 @@ export class Fighter {
 
     const atk = this.currentAttack;
     atk.timer += dt;
+    atk.animTimer += dt;
+    // The phase is derived FROM the displayed frame (not from a parallel ms
+    // clock), so the hitbox is active exactly on the animation's hitFrames —
+    // no drift even under tick quantization or attackSpeedFactor scaling.
+    const frame = this.updateAttackFrame();
+    const anim = ANIMATIONS[atk.animKey];
+    const [f0, f1] = anim.hitFrames || [0, anim.frames - 1];
+    const animDuration = anim.frames * frameDurationMs(atk.animKey, this.attackSpeedFactor);
 
     if (atk.phase === 'startup') {
-      if (atk.timer >= atk.startup) {
+      if (frame >= f0) {
         atk.phase = 'active';
         atk.timer = 0;
 
@@ -533,11 +608,13 @@ export class Fighter {
           };
         }
 
-        // Fire projectile if fireball
+        // Fire projectile if fireball — spawn point is where the model's
+        // hands hold the orb on the release frame (per character)
         if (atk.name === 'HADOUKEN' && !atk.hasFiredProjectile) {
           atk.hasFiredProjectile = true;
-          const spawnX = this.x + this.facing * 45;
-          const spawnY = this.y - 36;
+          const spawn = getProjectileSpawn(this.charId);
+          const spawnX = this.x + this.facing * spawn.x;
+          const spawnY = this.y + spawn.y;
           this.scene.spawnProjectile(this, spawnX, spawnY, this.facing);
 
           // NOUVEAU : effet de lancer
@@ -569,7 +646,9 @@ export class Fighter {
         }
       }
 
-      if (atk.timer >= atk.active) {
+      // Active ends when the animation leaves the hit frames (or reaches its
+      // last frame, for hitFrames that extend to the end of the anim)
+      if (frame > f1 || atk.animTimer >= animDuration) {
         atk.phase = 'recovery';
         atk.timer = 0;
         this.activeHitbox = null; // Hitbox becomes inactive during recovery
@@ -772,17 +851,19 @@ export class Fighter {
       }
     }
 
-    // Horizontal friction on hit/knockback (dt-scaled: frame-rate independent)
+    // Horizontal friction on hit/knockback. The sim advances in fixed 60 Hz
+    // ticks (dt is always exactly TICK_MS), so the per-tick decay is a plain
+    // constant — no Math.pow in the sim path, and frame-rate independent.
     if (this.state === FIGHTER_STATE.HURT || this.state === FIGHTER_STATE.BLOCK || this.state === FIGHTER_STATE.KNOCKDOWN) {
-      this.vx *= Math.pow(0.88, dt / 16.667);
+      this.vx *= 0.88;
     }
 
     this.x += this.vx * delta;
 
-    // Decaying forward impulse of heavy attacks
+    // Decaying forward impulse of heavy attacks (per-tick decay constant)
     if (this.lungeVx !== 0) {
       this.x += this.lungeVx * delta;
-      this.lungeVx *= Math.pow(0.85, dt / 16.667);
+      this.lungeVx *= 0.85;
       if (Math.abs(this.lungeVx) < 2) this.lungeVx = 0;
     }
 
@@ -800,19 +881,29 @@ export class Fighter {
 
   playAnimation(name) {
     const key = `${this.charId}_${name}`;
+    if (this.manualAttackFrames) {
+      // Coming out of a sim-driven attack animation: anims.stop() keeps
+      // currentAnim set, so force a restart of the (possibly same-keyed) anim.
+      this.manualAttackFrames = false;
+      this.sprite.anims.stop();
+      this.sprite.play(key, true);
+      return;
+    }
     if (this.sprite.anims.currentAnim?.key !== key) {
       this.sprite.play(key, true);
     }
   }
 
-  // Bounding boxes for combat collision system
+  // Bounding boxes for combat collision system — per-character model data
+  // (data/hitboxes.js), in world units relative to (x, y), mirrored by facing.
   getPushBox() {
-    const h = this.isCrouching ? 60 : this.height;
+    const spec = getPushboxSpec(this.charId);
+    const h = this.isCrouching ? spec.crouchH : spec.h;
     return {
-      x: this.x - this.width * GAME_CONFIG.FIGHTER.SCALE / 3,
-      y: this.y - h * GAME_CONFIG.FIGHTER.SCALE / 1.5,
-      w: this.width * GAME_CONFIG.FIGHTER.SCALE / 1.5,
-      h: h * GAME_CONFIG.FIGHTER.SCALE / 1.5
+      x: this.x - spec.w / 2,
+      y: this.y - h,
+      w: spec.w,
+      h: h
     };
   }
 
@@ -822,34 +913,15 @@ export class Fighter {
       return [];
     }
 
-    const boxes = [];
-    if (this.isCrouching) {
-      boxes.push({
-        name: 'crouch_body',
-        x: this.x - 22 * GAME_CONFIG.FIGHTER.SCALE / 1.5,
-        y: this.y - 55 * GAME_CONFIG.FIGHTER.SCALE / 1.5,
-        w: 44 * GAME_CONFIG.FIGHTER.SCALE / 1.5,
-        h: 55 * GAME_CONFIG.FIGHTER.SCALE / 1.5
-      });
-    } else {
-      // Head
-      boxes.push({
-        name: 'head',
-        x: this.x - 16 * GAME_CONFIG.FIGHTER.SCALE / 1.5,
-        y: this.y - 92 * GAME_CONFIG.FIGHTER.SCALE / 1.5,
-        w: 32 * GAME_CONFIG.FIGHTER.SCALE / 1.5,
-        h: 28 * GAME_CONFIG.FIGHTER.SCALE / 1.5
-      });
-      // Torso & legs
-      boxes.push({
-        name: 'body',
-        x: this.x - 22 * GAME_CONFIG.FIGHTER.SCALE / 1.5,
-        y: this.y - 64 * GAME_CONFIG.FIGHTER.SCALE / 1.5,
-        w: 44 * GAME_CONFIG.FIGHTER.SCALE / 1.5,
-        h: 64 * GAME_CONFIG.FIGHTER.SCALE / 1.5
-      });
-    }
-    return boxes;
+    const spec = getHurtboxSpec(this.charId);
+    const set = this.isCrouching ? spec.crouch : spec.standing;
+    return set.map(b => ({
+      name: b.name,
+      x: this.facing === 1 ? this.x + b.x : this.x - b.x - b.w,
+      y: this.y + b.y,
+      w: b.w,
+      h: b.h
+    }));
   }
 
   getActiveHitbox() {

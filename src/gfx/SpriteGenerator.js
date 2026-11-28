@@ -1,4 +1,5 @@
 import { CHARACTERS } from '../data/characters.js';
+import { ANIMATIONS } from '../data/animations.js';
 
 export class SpriteGenerator {
   constructor(scene) {
@@ -1710,57 +1711,28 @@ export class SpriteGenerator {
     this.p(ctx, bx + 4, botY + 9, 2, 2, pal.secondary);
   }
 
+  // Registers the Phaser anims from the shared ANIMATIONS table
+  // (src/data/animations.js) — the same table the sim uses to derive attack
+  // phase windows and drive attack frames, so presentation and hitboxes
+  // cannot drift apart.
   registerAnimations(id) {
     const anims = this.scene.anims;
-    const addAnim = (key, prefix, count, frameRate = 10, repeat = 0) => {
+    for (const [key, def] of Object.entries(ANIMATIONS)) {
       const fullKey = `${id}_${key}`;
       if (anims.exists(fullKey)) anims.remove(fullKey);
 
+      const prefix = def.prefix || key;
       const frames = [];
-      for (let i = 0; i < count; i++) {
+      for (let i = 0; i < def.frames; i++) {
         frames.push({ key: `${id}_${prefix}_${i}` });
       }
       anims.create({
         key: fullKey,
         frames: frames,
-        frameRate: frameRate,
-        repeat: repeat
+        frameRate: def.frameRate,
+        repeat: def.repeat ? -1 : 0
       });
-    };
-
-    addAnim('idle', 'idle', 4, 8, -1);
-    addAnim('walk_fwd', 'walk', 4, 10, -1);
-    addAnim('walk_back', 'walk', 4, 8, -1);
-    addAnim('crouch', 'crouch', 2, 8, -1);
-    addAnim('jump_up', 'jump', 3, 6, 0);
-    addAnim('dash_fwd', 'dash_fwd', 3, 16, 0);
-    addAnim('dash_back', 'dash_back', 3, 16, 0);
-
-    addAnim('light_punch', 'light_punch', 3, 15, 0);
-    addAnim('heavy_punch', 'heavy_punch', 4, 12, 0);
-    addAnim('light_kick', 'light_kick', 3, 14, 0);
-    addAnim('heavy_kick', 'heavy_kick', 4, 11, 0);
-
-    addAnim('crouch_punch', 'crouch_punch', 3, 14, 0);
-    addAnim('crouch_kick', 'crouch_kick', 3, 12, 0);
-
-    addAnim('jump_punch', 'jump_punch', 2, 10, 0);
-    addAnim('jump_kick', 'jump_kick', 2, 10, 0);
-
-    addAnim('throw', 'throw', 3, 10, 0);
-    addAnim('special_hadouken', 'hadouken', 4, 12, 0);
-    addAnim('special_shoryuken', 'shoryuken', 4, 12, 0);
-    addAnim('taunt', 'taunt', 4, 6, 0);
-
-    addAnim('hurt_high', 'hurt_high', 2, 12, 0);
-    addAnim('hurt_low', 'hurt_low', 2, 12, 0);
-    addAnim('block_high', 'block_high', 1, 10, 0);
-    addAnim('block_low', 'block_low', 1, 10, 0);
-
-    addAnim('knockdown', 'knockdown', 4, 8, 0);
-    addAnim('getup', 'getup', 3, 8, 0);
-    addAnim('victory', 'victory', 4, 6, -1);
-    addAnim('defeat', 'defeat', 1, 6, -1);
+    }
   }
 
   generateProjectiles() {

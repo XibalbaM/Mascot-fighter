@@ -15,6 +15,8 @@ export class CombatSystem {
   }
 
   update(dt, p1, p2, projectiles) {
+    // dt is always exactly one sim tick (TICK_MS) — hitstop advances in fixed
+    // steps, so it is identical at any refresh rate and safe for lockstep.
     // If in hitstop (impact freeze), decrement and skip combat movement.
     // Returns frozen=true only while time actually remains (the expiry frame
     // is not frozen, avoiding one extra frozen frame per hit).

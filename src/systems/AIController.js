@@ -1,7 +1,11 @@
+// The AI draws all of its randomness from an injected seeded RNG (mulberry32,
+// src/sim/rng.js) instead of Math.random(), so a match seed fully determines
+// the CPU's behavior — required for deterministic replays and lockstep netplay.
 export class AIController {
-  constructor() {
+  constructor(rng) {
+    this.rng = rng;
     this.decisionTimer = 0;
-    this.decisionInterval = 120; // Re-evaluates every 120ms
+    this.decisionInterval = 120; // Re-evaluates every 120ms (sim runs at a fixed 60 Hz tick)
     this.state = 'NEUTRAL'; // NEUTRAL, RETREAT, RUSH, BLOCKING
     this.dummyMode = 'STAND'; // 'STAND', 'CROUCH', 'AUTO_BLOCK'
 
@@ -51,11 +55,11 @@ export class AIController {
     // React immediately to anti-air or incoming strikes
     if (oppIsAirborne && distX < 160 && aiFighter.isGrounded) {
       // Anti-air Dragon Uppercut!
-      if (Math.random() < 0.65) {
+      if (this.rng() < 0.65) {
         inp.justUppercut = true;
       }
     } else if (oppIsAttacking && distX < 220) {
-      if (Math.random() < 0.75) {
+      if (this.rng() < 0.75) {
         // Hold backward to block!
         const backKey = (aiFighter.facing === 1) ? 'left' : 'right';
         this.setHeld(backKey === 'left', backKey === 'right', opponent.currentAttack?.attackType === 'low');
@@ -76,7 +80,7 @@ export class AIController {
     const inp = ai.input;
 
     // Super check: if meter full and in range, unleash!
-    if (ai.superMeter >= 100 && distX < 200 && Math.random() < 0.7) {
+    if (ai.superMeter >= 100 && distX < 200 && this.rng() < 0.7) {
       this.setHeld(false, false, false);
       inp.justSuper = true;
       return;
@@ -88,7 +92,7 @@ export class AIController {
     // Range zones:
     if (distX > 320) {
       // Long distance: Approach or throw projectile
-      const roll = Math.random();
+      const roll = this.rng();
       if (roll < 0.45) {
         // Walk forward
         this.setHeld(fwdLeft, fwdRight, false);
@@ -103,7 +107,7 @@ export class AIController {
       }
     } else if (distX > 140) {
       // Mid range (Footsies / Poking range)
-      const roll = Math.random();
+      const roll = this.rng();
       if (roll < 0.3) {
         // Heavy Kick / Poke
         this.setHeld(false, false, false);
@@ -121,7 +125,7 @@ export class AIController {
       }
     } else {
       // Close range (Brawling / Pressure)
-      const roll = Math.random();
+      const roll = this.rng();
       if (roll < 0.35) {
         // Fast Light Jab
         this.setHeld(false, false, false);

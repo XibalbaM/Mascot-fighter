@@ -1,4 +1,5 @@
 import { GAME_CONFIG } from '../config.js';
+import { TICK_MS, MOTION_WINDOW_TICKS } from '../sim/constants.js';
 
 export class InputManager {
   constructor(scene) {
@@ -6,10 +7,15 @@ export class InputManager {
     this.keyState = {};
     this.prevKeyState = {};
 
+    // Sim tick counter, incremented once per update() call (one call = one
+    // 60 Hz sim tick). All buffering below is tick-based, never wall-clock,
+    // so two peers sampling the same keys on the same ticks get the same sim.
+    this.tick = 0;
+
     // Presses made while the game is frozen by a hitstop are kept here
-    // (key code -> timestamp) so they are not lost.
+    // (key code -> tick of the press) so they are not lost.
     this.pressBuffer = {};
-    this.bufferMs = 300; // how long a buffered press stays valid
+    this.bufferTicks = Math.ceil(300 / TICK_MS); // legacy 300 ms window, in ticks
 
     // Motion input history buffers for P1 and P2
     this.p1History = [];
@@ -46,7 +52,7 @@ export class InputManager {
       }
       this.keyState[e.code] = true;
       if (!e.repeat) {
-        this.pressBuffer[e.code] = Date.now();
+        this.pressBuffer[e.code] = this.tick;
       }
 
       // Global hotkeys (KeyH is used by P2 as an alternate heavy kick, so debug uses KeyP)
@@ -75,6 +81,11 @@ export class InputManager {
   }
 
   update(dt, p1, p2, gameMode) {
+    // Called exactly once per sim tick (dt = TICK_MS): inputs are sampled
+    // per tick, not per rendered frame, so refresh rate cannot change the
+    // input stream seen by the sim.
+    this.tick++;
+
     // 1. Process P1 inputs
     this.updatePlayer1(p1);
 
@@ -100,7 +111,7 @@ export class InputManager {
 
   justPressed(code) {
     const t = this.pressBuffer[code];
-    const buffered = t !== undefined && (Date.now() - t) < this.bufferMs;
+    const buffered = t !== undefined && (this.tick - t) < this.bufferTicks;
     return (!!this.keyState[code] && !this.prevKeyState[code]) || buffered;
   }
 
@@ -226,25 +237,22 @@ export class InputManager {
     else if (fwd) dir = 6;
     else if (back) dir = 4;
 
-    const now = Date.now();
     if (history.length === 0 || history[history.length - 1].dir !== dir) {
-      history.push({ dir, time: now });
-      if (history.length > 20) history.shift();
+      history.push({ dir, tick: this.tick });
+      if (history.length > MOTION_WINDOW_TICKS) history.shift();
     }
   }
 
   checkQCF(history, facing) {
-    // Looks for 2 -> 3 -> 6 (Down -> Down-Forward -> Forward) within last 400ms
-    const now = Date.now();
-    const recent = history.filter(h => now - h.time < 400).map(h => h.dir);
+    // Looks for 2 -> 3 -> 6 (Down -> Down-Forward -> Forward) within the motion window
+    const recent = history.filter(h => this.tick - h.tick < MOTION_WINDOW_TICKS).map(h => h.dir);
     const str = recent.join('');
     return str.includes('236');
   }
 
   checkDP(history, facing) {
-    // Looks for 6 -> 2 -> 3 (Forward -> Down -> Down-Forward) within last 400ms
-    const now = Date.now();
-    const recent = history.filter(h => now - h.time < 400).map(h => h.dir);
+    // Looks for 6 -> 2 -> 3 (Forward -> Down -> Down-Forward) within the motion window
+    const recent = history.filter(h => this.tick - h.tick < MOTION_WINDOW_TICKS).map(h => h.dir);
     const str = recent.join('');
     return str.includes('623');
   }
