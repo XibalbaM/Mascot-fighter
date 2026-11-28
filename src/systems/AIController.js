@@ -4,19 +4,39 @@ export class AIController {
     this.decisionInterval = 120; // Re-evaluates every 120ms
     this.state = 'NEUTRAL'; // NEUTRAL, RETREAT, RUSH, BLOCKING
     this.dummyMode = 'STAND'; // 'STAND', 'CROUCH', 'AUTO_BLOCK'
+
+    // Held directional intent. The fighter's input flags are fully reset
+    // every frame and re-applied from here, so a decision can never get
+    // "stuck" (previously `up`/`down` stayed true forever once set).
+    this.held = { left: false, right: false, down: false };
+  }
+
+  resetInputFlags(inp) {
+    inp.left = false;
+    inp.right = false;
+    inp.up = false;
+    inp.down = false;
+    inp.justUp = false;
+    inp.justLightPunch = false;
+    inp.justHeavyPunch = false;
+    inp.justLightKick = false;
+    inp.justHeavyKick = false;
+    inp.justFireball = false;
+    inp.justUppercut = false;
+    inp.justSuper = false;
+  }
+
+  setHeld(left, right, down) {
+    this.held.left = !!left;
+    this.held.right = !!right;
+    this.held.down = !!down;
   }
 
   update(dt, aiFighter, opponent, gameMode) {
-    // Reset edge triggers each frame
     if (gameMode === 'PVP') return;
 
-    aiFighter.input.justLightPunch = false;
-    aiFighter.input.justHeavyPunch = false;
-    aiFighter.input.justLightKick = false;
-    aiFighter.input.justHeavyKick = false;
-    aiFighter.input.justFireball = false;
-    aiFighter.input.justUppercut = false;
-    aiFighter.input.justSuper = false;
+    const inp = aiFighter.input;
+    this.resetInputFlags(inp);
 
     if (gameMode === 'TRAINING') {
       this.handleTrainingDummy(aiFighter, opponent);
@@ -32,34 +52,33 @@ export class AIController {
     if (oppIsAirborne && distX < 160 && aiFighter.isGrounded) {
       // Anti-air Dragon Uppercut!
       if (Math.random() < 0.65) {
-        aiFighter.input.justUppercut = true;
-        return;
+        inp.justUppercut = true;
       }
-    }
-
-    // Reaction to incoming attack (Guard)
-    if (oppIsAttacking && distX < 220) {
+    } else if (oppIsAttacking && distX < 220) {
       if (Math.random() < 0.75) {
         // Hold backward to block!
-        const blockDir = (aiFighter.facing === 1) ? { left: true, right: false } : { left: false, right: true };
-        aiFighter.input.left = blockDir.left;
-        aiFighter.input.right = blockDir.right;
-        aiFighter.input.down = opponent.currentAttack?.attackType === 'low';
-        return;
+        const backKey = (aiFighter.facing === 1) ? 'left' : 'right';
+        this.setHeld(backKey === 'left', backKey === 'right', opponent.currentAttack?.attackType === 'low');
       }
-    }
-
-    // Strategic decisions every interval
-    if (this.decisionTimer >= this.decisionInterval) {
+    } else if (this.decisionTimer >= this.decisionInterval) {
+      // Strategic decisions every interval
       this.decisionTimer = 0;
       this.makeStrategicDecision(aiFighter, opponent, distX);
     }
+
+    // Apply the held directional intent to the fighter's input
+    inp.left = this.held.left;
+    inp.right = this.held.right;
+    inp.down = this.held.down;
   }
 
   makeStrategicDecision(ai, opp, distX) {
+    const inp = ai.input;
+
     // Super check: if meter full and in range, unleash!
     if (ai.superMeter >= 100 && distX < 200 && Math.random() < 0.7) {
-      ai.input.justSuper = true;
+      this.setHeld(false, false, false);
+      inp.justSuper = true;
       return;
     }
 
@@ -72,76 +91,71 @@ export class AIController {
       const roll = Math.random();
       if (roll < 0.45) {
         // Walk forward
-        ai.input.left = fwdLeft;
-        ai.input.right = fwdRight;
-        ai.input.down = false;
-        ai.input.up = false;
+        this.setHeld(fwdLeft, fwdRight, false);
       } else if (roll < 0.75) {
         // Fireball!
-        ai.input.left = false;
-        ai.input.right = false;
-        ai.input.justFireball = true;
+        this.setHeld(false, false, false);
+        inp.justFireball = true;
       } else {
-        // Jump in
-        ai.input.left = fwdLeft;
-        ai.input.right = fwdRight;
-        ai.input.up = true;
+        // Jump in (edge-triggered like a human player)
+        this.setHeld(fwdLeft, fwdRight, false);
+        inp.justUp = true;
       }
     } else if (distX > 140) {
       // Mid range (Footsies / Poking range)
       const roll = Math.random();
       if (roll < 0.3) {
         // Heavy Kick / Poke
-        ai.input.justHeavyKick = true;
+        this.setHeld(false, false, false);
+        inp.justHeavyKick = true;
       } else if (roll < 0.5) {
         // Crouch sweep
-        ai.input.down = true;
-        ai.input.justHeavyKick = true;
+        this.setHeld(false, false, true);
+        inp.justHeavyKick = true;
       } else if (roll < 0.75) {
         // Walk forward into close range
-        ai.input.left = fwdLeft;
-        ai.input.right = fwdRight;
-        ai.input.down = false;
+        this.setHeld(fwdLeft, fwdRight, false);
       } else {
         // Step back defensively
-        ai.input.left = !fwdLeft;
-        ai.input.right = !fwdRight;
+        this.setHeld(!fwdLeft, !fwdRight, false);
       }
     } else {
       // Close range (Brawling / Pressure)
       const roll = Math.random();
       if (roll < 0.35) {
         // Fast Light Jab
-        ai.input.justLightPunch = true;
+        this.setHeld(false, false, false);
+        inp.justLightPunch = true;
       } else if (roll < 0.6) {
         // Light Kick
-        ai.input.justLightKick = true;
+        this.setHeld(false, false, false);
+        inp.justLightKick = true;
       } else if (roll < 0.75) {
         // Uppercut
-        ai.input.justUppercut = true;
+        this.setHeld(false, false, false);
+        inp.justUppercut = true;
       } else if (roll < 0.9) {
         // Heavy Punch
-        ai.input.justHeavyPunch = true;
+        this.setHeld(false, false, false);
+        inp.justHeavyPunch = true;
       } else {
         // Crouch guard
-        ai.input.down = true;
-        ai.input.left = !fwdLeft;
-        ai.input.right = !fwdRight;
+        this.setHeld(!fwdLeft, !fwdRight, true);
       }
     }
   }
 
   handleTrainingDummy(dummy, opponent) {
     // Dummy holds position or auto blocks
-    dummy.input.left = false;
-    dummy.input.right = false;
+    this.setHeld(false, false, this.dummyMode === 'CROUCH');
+    dummy.input.left = this.held.left;
+    dummy.input.right = this.held.right;
     dummy.input.up = false;
-    dummy.input.down = (this.dummyMode === 'CROUCH');
+    dummy.input.down = this.held.down;
 
     if (this.dummyMode === 'AUTO_BLOCK' && opponent.state === 'ATTACK') {
-      const blockDir = (dummy.facing === 1) ? { left: true, right: false } : { left: false, right: true };
-      dummy.input.left = blockDir.left;
-      dummy.input.right = blockDir.right;
+      const blockKey = (dummy.facing === 1) ? 'left' : 'right';
+      dummy.input[blockKey] = true;
       dummy.input.down = (opponent.currentAttack?.attackType === 'low');
     }
   }
