@@ -16,6 +16,9 @@ const phaserConfig = {
     autoCenter: Phaser.Scale.CENTER_BOTH,
   },
   backgroundColor: '#0a0914',
+  input: {
+    activePointers: 5, // multi-touch so the virtual arcade pad supports several simultaneous buttons
+  },
   scene: [BootScene, CharacterSelectScene, BattleScene]
 };
 

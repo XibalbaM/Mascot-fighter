@@ -36,7 +36,10 @@ export class InputManager {
   }
 
   setupListeners() {
-    window.addEventListener('keydown', (e) => {
+    // Handlers are stored so destroy() can remove them: BattleScene is
+    // re-created on every match, and without this the window listeners
+    // would pile up and fire the hotkeys once per past match.
+    this._onKeyDown = (e) => {
       // Prevent browser scrolling on space/arrows
       if (['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.code)) {
         e.preventDefault();
@@ -48,15 +51,27 @@ export class InputManager {
 
       // Global hotkeys (KeyH is used by P2 as an alternate heavy kick, so debug uses KeyP)
       if (e.code === 'KeyP') {
-        this.scene.debugOverlay.toggle();
+        this.scene.debugOverlay?.toggle();
       } else if (e.code === 'KeyR') {
-        this.scene.restartMatch();
+        this.scene.restartMatch?.();
       }
-    });
+    };
 
-    window.addEventListener('keyup', (e) => {
+    this._onKeyUp = (e) => {
       this.keyState[e.code] = false;
-    });
+    };
+
+    window.addEventListener('keydown', this._onKeyDown);
+    window.addEventListener('keyup', this._onKeyUp);
+  }
+
+  destroy() {
+    if (this._onKeyDown) {
+      window.removeEventListener('keydown', this._onKeyDown);
+      window.removeEventListener('keyup', this._onKeyUp);
+      this._onKeyDown = null;
+      this._onKeyUp = null;
+    }
   }
 
   update(dt, p1, p2, gameMode) {
@@ -126,6 +141,7 @@ export class InputManager {
 
     p1.input = {
       up,
+      justUp: this.justPressed(k.UP) || this.justPressedVirtual('up'),
       down,
       left,
       right,
@@ -177,6 +193,7 @@ export class InputManager {
 
     p2.input = {
       up,
+      justUp: this.justPressed(k.UP),
       down,
       left,
       right,

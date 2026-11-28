@@ -48,7 +48,7 @@ export class DebugOverlay {
     const p1Hb = p1.getActiveHitbox();
     const distX = Math.round(Math.abs(p1.x - p2.x));
     this.debugText.setText(
-      `[DEBUG HITBOX VIEW - PRESS H TO HIDE]\n` +
+      `[DEBUG HITBOX VIEW - PRESS P TO HIDE]\n` +
       `DIST: ${distX}px\n` +
       `P1 [${p1.state}] HP:${p1.health} EX:${Math.floor(p1.superMeter)}% ATK:${p1.currentAttack?.animKey || 'none'}\n` +
       `P2 [${p2.state}] HP:${p2.health} EX:${Math.floor(p2.superMeter)}% ATK:${p2.currentAttack?.animKey || 'none'}`
