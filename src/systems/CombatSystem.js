@@ -15,10 +15,12 @@ export class CombatSystem {
   }
 
   update(dt, p1, p2, projectiles) {
-    // If in hitstop (impact freeze), decrement and skip combat movement
+    // If in hitstop (impact freeze), decrement and skip combat movement.
+    // Returns frozen=true only while time actually remains (the expiry frame
+    // is not frozen, avoiding one extra frozen frame per hit).
     if (this.hitstopRemaining > 0) {
       this.hitstopRemaining -= dt;
-      return true; // was frozen
+      return this.hitstopRemaining > 0;
     }
 
     // 1. Pushbox Collision (Separation)

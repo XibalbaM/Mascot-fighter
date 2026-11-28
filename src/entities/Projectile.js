@@ -9,7 +9,8 @@ export class Projectile {
     this.y = y;
     this.direction = direction; // 1 or -1
     this.speed = 460;
-    this.damage = 16;
+    // Scaled by the owner's offense stat like melee damage
+    this.damage = Math.max(1, Math.round(16 * (owner.offenseFactor || 1)));
     this.isDead = false;
 
     // Sprite — use character-specific projectile animation
