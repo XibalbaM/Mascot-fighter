@@ -18,7 +18,7 @@ A responsive 2D Street Fighter-style arcade fighting game built for the browser 
   - **Juggle & Knockdown**: Heavy sweeps and Dragon Uppercuts knock down the opponent, with ground bounces, prone state, and invincible wakeups.
   - **Projectiles & Clashes**: Hadouken energy spheres travel across the screen and clash/neutralize when meeting opposing fireballs.
   - **Super Meter / EX Gauge**: Meter builds by attacking and guarding. Reaching 100% unleashes a cinematic screen-flash Super Move!
-  - **Hitbox & Hurtbox Visualizer**: Press `H` to toggle live collision wireframes (Green = Hurtboxes, Red = Hitboxes, Yellow = Pushboxes).
+  - **Hitbox & Hurtbox Visualizer**: Press `P` to toggle live collision wireframes (Green = Hurtboxes, Red = Hitboxes, Yellow = Pushboxes).
 
 - **Character Selector & Fighter Stats**:
   - Full arcade character selection scene before battle with real-time animated previews.
@@ -31,9 +31,7 @@ A responsive 2D Street Fighter-style arcade fighting game built for the browser 
   - Easily extensible roster configured in `src/data/characters.js`.
   - Press <kbd>ESC</kbd> during battle to return to the Character Selection screen.
 
-- **Fighters (Initial Roster)**:
-  1. **Rex (The Crimson Brawler)**: Heavyweight dragon martial artist (HP: 110, Def: 78, Off: 84, Spd: 62, Atk Spd: 68).
-  2. **Sparky (The Azure Thunder)**: Agile cyber-fox brawler (HP: 90, Def: 58, Off: 74, Spd: 94, Atk Spd: 92).
+- **Fighters (Roster of 8 mascots)**: PHÉNIKTARACE (phoenix), DEWAELION (lion), PALMITO (palm tree), PIGROS (pig), POULPY (squid), ISO (husky), ??? (dragon), HYPOLITE (hippo) — stats in `src/data/characters.js`.
 
 - **Game Modes**:
   - **Player 1 vs CPU**: Intelligent AI that spaces, pokes, jumps, blocks, anti-airs, and unleashes super attacks.
@@ -81,7 +79,7 @@ A responsive 2D Street Fighter-style arcade fighting game built for the browser 
 | **SUPER MOVE** | <kbd>Enter</kbd> | — |
 
 ### Global Shortcuts
-- <kbd>H</kbd> : Toggle Hitbox / Hurtbox Debug Viewer
+- <kbd>P</kbd> : Toggle Hitbox / Hurtbox Debug Viewer
 - <kbd>R</kbd> : Instant Match Reset
 
 ---
@@ -129,7 +127,10 @@ Mascot-fighter/
     │   ├── HUD.js               # Street Fighter-style health bars, EX meter, timer, banners
     │   ├── DebugOverlay.js      # Hitbox / hurtbox visualizer with frame telemetry
     │   └── VirtualControls.js   # Virtual on-screen arcade buttons for touch/mouse
+    ├── data/
+    │   └── characters.js        # Roster: palettes, stats, specials per mascot
     └── scenes/
-        ├── BootScene.js         # Texture generation and game startup
-        └── BattleScene.js       # Match coordination and round loop
+        ├── BootScene.js             # Texture generation and game startup
+        ├── CharacterSelectScene.js  # Roster grid, previews, mode selection
+        └── BattleScene.js           # Match coordination and round loop
 ```
