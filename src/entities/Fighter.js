@@ -17,6 +17,33 @@ export const FIGHTER_STATE = {
   DEFEAT: 'DEFEAT'
 };
 
+
+// Normal attack frame data, indexed by stance and input. Kept as data (not code)
+// so balance tweaks don't require touching the state machine.
+const ATTACK_DATA = {
+  standing: {
+    lightPunch: { animKey: 'light_punch', damage: 6, startup: 70, active: 90, recovery: 100, hitstop: GAME_CONFIG.HITSTOP.LIGHT, hitstun: 200, blockstun: 160, knockbackX: 120, knockbackY: 0, isKnockdown: false, attackType: 'mid', hitbox: { x: 32, y: -86, w: 49, h: 16 } },
+    heavyPunch: { animKey: 'heavy_punch', damage: 15, startup: 130, active: 140, recovery: 200, hitstop: GAME_CONFIG.HITSTOP.HEAVY, hitstun: 300, blockstun: 230, knockbackX: 260, knockbackY: 0, isKnockdown: false, attackType: 'mid', hitbox: { x: 42, y: -90, w: 64, h: 31 } },
+    lightKick: { animKey: 'light_kick', damage: 7, startup: 90, active: 100, recovery: 120, hitstop: GAME_CONFIG.HITSTOP.LIGHT, hitstun: 210, blockstun: 170, knockbackX: 140, knockbackY: 0, isKnockdown: false, attackType: 'mid', hitbox: { x: 34, y: -51, w: 28, h: 20 } },
+    heavyKick: { animKey: 'heavy_kick', damage: 16, startup: 140, active: 140, recovery: 220, hitstop: GAME_CONFIG.HITSTOP.HEAVY, hitstun: 310, blockstun: 240, knockbackX: 280, knockbackY: 0, isKnockdown: false, attackType: 'mid', hitbox: { x: 44, y: -59, w: 45, h: 22 } }
+  },
+  crouching: {
+    lightPunch: { animKey: 'crouch_punch', damage: 5, startup: 80, active: 100, recovery: 110, hitstop: GAME_CONFIG.HITSTOP.LIGHT, hitstun: 180, blockstun: 150, knockbackX: 100, knockbackY: 0, isKnockdown: false, attackType: 'mid', hitbox: { x: 28, y: -22, w: 30, h: 18 } },
+    heavyPunch: { animKey: 'crouch_punch', damage: 12, startup: 120, active: 130, recovery: 160, hitstop: GAME_CONFIG.HITSTOP.HEAVY, hitstun: 260, blockstun: 210, knockbackX: 180, knockbackY: 0, isKnockdown: false, attackType: 'mid', hitbox: { x: 32, y: -22, w: 34, h: 22 } },
+    lightKick: { animKey: 'crouch_kick', damage: 6, startup: 90, active: 110, recovery: 120, hitstop: GAME_CONFIG.HITSTOP.LIGHT, hitstun: 200, blockstun: 170, knockbackX: 110, knockbackY: 0, isKnockdown: false, attackType: 'low', hitbox: { x: 30, y: -1, w: 58, h: 16 } },
+    heavyKick: { animKey: 'crouch_kick', damage: 14, startup: 140, active: 150, recovery: 240, hitstop: GAME_CONFIG.HITSTOP.HEAVY, hitstun: 320, blockstun: 240, knockbackX: 250, knockbackY: -220, isKnockdown: true, attackType: 'low', hitbox: { x: 36, y: -1, w: 52, h: 16 } }
+  },
+  air: {
+    lightPunch: { animKey: 'jump_punch', damage: 7, startup: 80, active: 180, recovery: 100, hitstop: GAME_CONFIG.HITSTOP.LIGHT, hitstun: 280, blockstun: 200, knockbackX: 160, knockbackY: 0, isKnockdown: false, attackType: 'overhead', hitbox: { x: 26, y: -45, w: 32, h: 28 } },
+    heavyPunch: { animKey: 'jump_punch', damage: 12, startup: 80, active: 180, recovery: 100, hitstop: GAME_CONFIG.HITSTOP.HEAVY, hitstun: 280, blockstun: 200, knockbackX: 160, knockbackY: 0, isKnockdown: false, attackType: 'overhead', hitbox: { x: 26, y: -45, w: 32, h: 28 } },
+    lightKick: { animKey: 'jump_kick', damage: 8, startup: 90, active: 200, recovery: 120, hitstop: GAME_CONFIG.HITSTOP.LIGHT, hitstun: 300, blockstun: 220, knockbackX: 200, knockbackY: 0, isKnockdown: false, attackType: 'overhead', hitbox: { x: 30, y: -25, w: 36, h: 28 } },
+    heavyKick: { animKey: 'jump_kick', damage: 14, startup: 90, active: 200, recovery: 120, hitstop: GAME_CONFIG.HITSTOP.HEAVY, hitstun: 300, blockstun: 220, knockbackX: 200, knockbackY: 0, isKnockdown: false, attackType: 'overhead', hitbox: { x: 30, y: -25, w: 36, h: 28 } }
+  }
+};
+
+// Input priority when several attack buttons are pressed on the same frame
+const ATTACK_PRIORITY = ['lightPunch', 'heavyPunch', 'lightKick', 'heavyKick'];
+
 export class Fighter {
   constructor(scene, x, y, charId, facing = 1, isPlayer1 = true) {
     this.scene = scene;
@@ -31,6 +58,7 @@ export class Fighter {
     this.y = y;
     this.vx = 0;
     this.vy = 0;
+    this.lungeVx = 0; // decaying forward impulse of heavy attacks (separate from vx)
     this.groundY = GAME_CONFIG.GROUND_Y;
 
     // Derived Attributes from Character Stats
@@ -79,6 +107,7 @@ export class Fighter {
     // Input intent flags (updated each frame by InputManager / AI)
     this.input = {
       up: false,
+      justUp: false,
       down: false,
       left: false,
       right: false,
@@ -109,8 +138,8 @@ export class Fighter {
     this.sprite.setOrigin(0.5, 1.0);
     this.sprite.play(`${charId}_idle`);
 
-    // Shadow on the ground
-    this.shadow = scene.add.ellipse(x, this.groundY, 48, 12, 0x000000, 0.45);
+    // Shadow on the ground (depth above the floor so it stays visible)
+    this.shadow = scene.add.ellipse(x, this.groundY, 48, 12, 0x000000, 0.45).setDepth(3);
   }
 
   setOpponent(opp) {
@@ -133,6 +162,10 @@ export class Fighter {
     this.hitstunTimer = 0;
     this.blockstunTimer = 0;
     this.invincibilityTimer = 0;
+    this.stateTimer = 0;
+    this.comboCounter = 0;
+    this.canCancelIntoSpecial = false;
+    this.lungeVx = 0;
     this.state = FIGHTER_STATE.IDLE;
     this.playAnimation('idle');
     this.sprite.setAlpha(1.0);
@@ -243,8 +276,8 @@ export class Fighter {
     // 1. Attack / Special move priority checks
     if (this.checkAttackTriggers()) return;
 
-    // 2. Jumping
-    if (this.input.up && this.isGrounded) {
+    // 2. Jumping (edge-triggered: holding up doesn't bunny-hop)
+    if (this.input.justUp && this.isGrounded) {
       this.initiateJump();
       return;
     }
@@ -312,37 +345,11 @@ export class Fighter {
   }
 
   handleAirborneInputs() {
-    // Air attack triggers
+    // Air attack triggers (jump-ins are overheads)
     if (this.input.justLightPunch || this.input.justHeavyPunch) {
-      this.startAttack('jump_punch', {
-        damage: this.input.justHeavyPunch ? 12 : 7,
-        startup: 80,
-        active: 180,
-        recovery: 100,
-        hitstop: this.input.justHeavyPunch ? GAME_CONFIG.HITSTOP.HEAVY : GAME_CONFIG.HITSTOP.LIGHT,
-        hitstun: 280,
-        blockstun: 200,
-        knockbackX: 160,
-        knockbackY: 0,
-        isKnockdown: false,
-        attackType: 'overhead', // Jump-ins are overheads!
-        hitbox: { x: 26, y: -45, w: 32, h: 28 }
-      });
+      this.startAttack('jump_punch', this.input.justHeavyPunch ? ATTACK_DATA.air.heavyPunch : ATTACK_DATA.air.lightPunch);
     } else if (this.input.justLightKick || this.input.justHeavyKick) {
-      this.startAttack('jump_kick', {
-        damage: this.input.justHeavyKick ? 14 : 8,
-        startup: 90,
-        active: 200,
-        recovery: 120,
-        hitstop: this.input.justHeavyKick ? GAME_CONFIG.HITSTOP.HEAVY : GAME_CONFIG.HITSTOP.LIGHT,
-        hitstun: 300,
-        blockstun: 220,
-        knockbackX: 200,
-        knockbackY: 0,
-        isKnockdown: false,
-        attackType: 'overhead',
-        hitbox: { x: 30, y: -25, w: 36, h: 28 }
-      });
+      this.startAttack('jump_kick', this.input.justHeavyKick ? ATTACK_DATA.air.heavyKick : ATTACK_DATA.air.lightKick);
     }
   }
 
@@ -365,150 +372,15 @@ export class Fighter {
       return true;
     }
 
-    // Crouching Attacks
-    if (this.isCrouching) {
-      if (this.input.justLightPunch) {
-        this.startAttack('crouch_punch', {
-          damage: 5,
-          startup: 80,
-          active: 100,
-          recovery: 110,
-          hitstop: GAME_CONFIG.HITSTOP.LIGHT,
-          hitstun: 180,
-          blockstun: 150,
-          knockbackX: 100,
-          knockbackY: 0,
-          isKnockdown: false,
-          attackType: 'mid',
-          hitbox: { x: 28, y: -22, w: 30, h: 18 }
-        });
+    // Normal attacks come from the ATTACK_DATA table, picked by stance
+    const table = this.isCrouching ? ATTACK_DATA.crouching : ATTACK_DATA.standing;
+    for (const key of ATTACK_PRIORITY) {
+      const justFlag = 'just' + key.charAt(0).toUpperCase() + key.slice(1);
+      if (this.input[justFlag]) {
+        const data = table[key];
+        this.startAttack(data.animKey, data);
         return true;
       }
-      if (this.input.justHeavyPunch) {
-        this.startAttack('crouch_punch', {
-          damage: 12,
-          startup: 120,
-          active: 130,
-          recovery: 160,
-          hitstop: GAME_CONFIG.HITSTOP.HEAVY,
-          hitstun: 260,
-          blockstun: 210,
-          knockbackX: 180,
-          knockbackY: 0,
-          isKnockdown: false,
-          attackType: 'mid',
-          hitbox: { x: 32, y: -22, w: 34, h: 22 }
-        });
-        return true;
-      }
-      if (this.input.justLightKick) {
-        this.startAttack('crouch_kick', {
-          damage: 6,
-          startup: 90,
-          active: 110,
-          recovery: 120,
-          hitstop: GAME_CONFIG.HITSTOP.LIGHT,
-          hitstun: 200,
-          blockstun: 170,
-          knockbackX: 110,
-          knockbackY: 0,
-          attackType: 'low',
-          isKnockdown: false,
-          hitbox: { x: 30 * GAME_CONFIG.FIGHTER.SCALE / 2.2, y: -1 * GAME_CONFIG.FIGHTER.SCALE / 2.2, w: 58 * GAME_CONFIG.FIGHTER.SCALE / 2.2, h: 16 * GAME_CONFIG.FIGHTER.SCALE / 2.2 }
-        });
-        return true;
-      }
-      if (this.input.justHeavyKick) {
-        // Heavy crouch kick = SWEEP (causes knockdown!)
-        this.startAttack('crouch_kick', {
-          damage: 14,
-          startup: 140,
-          active: 150,
-          recovery: 240,
-          hitstop: GAME_CONFIG.HITSTOP.HEAVY,
-          hitstun: 320,
-          blockstun: 240,
-          knockbackX: 250,
-          knockbackY: -220,
-          attackType: 'low',
-          isKnockdown: true,
-          hitbox: { x: 36 * GAME_CONFIG.FIGHTER.SCALE / 2.2, y: -1 * GAME_CONFIG.FIGHTER.SCALE / 2.2, w: 52 * GAME_CONFIG.FIGHTER.SCALE / 2.2, h: 16 * GAME_CONFIG.FIGHTER.SCALE / 2.2 }
-        });
-        return true;
-      }
-    }
-
-    // Standing Attacks
-    if (this.input.justLightPunch) {
-      this.startAttack('light_punch', {
-        damage: 6,
-        startup: 70,
-        active: 90,
-        recovery: 100,
-        hitstop: GAME_CONFIG.HITSTOP.LIGHT,
-        hitstun: 200,
-        blockstun: 160,
-        knockbackX: 120,
-        knockbackY: 0,
-        isKnockdown: false,
-        attackType: 'mid',
-        hitbox: { x: 32 * GAME_CONFIG.FIGHTER.SCALE / 2.2, y: -86 * GAME_CONFIG.FIGHTER.SCALE / 2.2, w: 49 * GAME_CONFIG.FIGHTER.SCALE / 2.2, h: 16 * GAME_CONFIG.FIGHTER.SCALE / 2.2 }
-      });
-      return true;
-    }
-
-    if (this.input.justHeavyPunch) {
-      this.startAttack('heavy_punch', {
-        damage: 15,
-        startup: 130,
-        active: 140,
-        recovery: 200,
-        hitstop: GAME_CONFIG.HITSTOP.HEAVY,
-        hitstun: 300,
-        blockstun: 230,
-        knockbackX: 260,
-        knockbackY: 0,
-        isKnockdown: false,
-        attackType: 'mid',
-        hitbox: { x: 42 * GAME_CONFIG.FIGHTER.SCALE / 2.2, y: -90 * GAME_CONFIG.FIGHTER.SCALE / 2.2, w: 64 * GAME_CONFIG.FIGHTER.SCALE / 2.2, h: 31 * GAME_CONFIG.FIGHTER.SCALE / 2.2 }
-      });
-      return true;
-    }
-
-    if (this.input.justLightKick) {
-      this.startAttack('light_kick', {
-        damage: 7,
-        startup: 90,
-        active: 100,
-        recovery: 120,
-        hitstop: GAME_CONFIG.HITSTOP.LIGHT,
-        hitstun: 210,
-        blockstun: 170,
-        knockbackX: 140,
-        knockbackY: 0,
-        isKnockdown: false,
-        attackType: 'mid',
-        hitbox: { x: 34 * GAME_CONFIG.FIGHTER.SCALE / 2.2, y: -51 * GAME_CONFIG.FIGHTER.SCALE / 2.2, w: 28 * GAME_CONFIG.FIGHTER.SCALE / 2.2, h: 20 * GAME_CONFIG.FIGHTER.SCALE / 2.2 }
-      });
-      return true;
-    }
-
-    if (this.input.justHeavyKick) {
-      this.startAttack('heavy_kick', {
-        damage: 16,
-        startup: 140,
-        active: 140,
-        recovery: 220,
-        hitstop: GAME_CONFIG.HITSTOP.HEAVY,
-        hitstun: 310,
-        blockstun: 240,
-        knockbackX: 280,
-        knockbackY: 0,
-        isKnockdown: false,
-        attackType: 'mid',
-        hitbox: { x: 44 * GAME_CONFIG.FIGHTER.SCALE / 2.2, y: -59 * GAME_CONFIG.FIGHTER.SCALE / 2.2, w: 45 * GAME_CONFIG.FIGHTER.SCALE / 2.2, h: 22 * GAME_CONFIG.FIGHTER.SCALE / 2.2 }
-      });
-      return true;
     }
 
     return false;
@@ -533,9 +405,12 @@ export class Fighter {
     this.activeHitbox = null;
     this.canCancelIntoSpecial = false;
 
-    // Slight forward step for grounded heavy attacks
+    // Slight forward step for grounded heavy attacks: a short decaying impulse
+    // (lungeVx) instead of a persistent vx, so the fighter doesn't slide
+    // through the whole attack animation
     if (this.isGrounded) {
-      this.vx = (animKey.includes('heavy') ? this.facing * (60 * this.speedFactor) : 0);
+      this.vx = 0;
+      this.lungeVx = animKey.includes('heavy') ? this.facing * (60 * this.speedFactor) : 0;
     }
 
     this.playAnimation(animKey);
@@ -581,7 +456,7 @@ export class Fighter {
       attackType: 'mid',
       isKnockdown: true,
       hasHit: false,
-      hitbox: { x: 26 * GAME_CONFIG.FIGHTER.SCALE / 2.2, y: -172 * GAME_CONFIG.FIGHTER.SCALE / 2.2, w: 41 * GAME_CONFIG.FIGHTER.SCALE / 2.2, h: 110 * GAME_CONFIG.FIGHTER.SCALE / 2.2 }
+      hitbox: { x: 26, y: -172, w: 41, h: 110 }
     };
     this.isInvincible = true;
     this.invincibilityTimer = 160; // Dragon punch invincibility on startup!
@@ -611,7 +486,7 @@ export class Fighter {
       isKnockdown: true,
       hasHit: false,
       isSuper: true,
-      hitbox: { x: 30 * GAME_CONFIG.FIGHTER.SCALE / 2.2, y: -172 * GAME_CONFIG.FIGHTER.SCALE / 2.2, w: 37 * GAME_CONFIG.FIGHTER.SCALE / 2.2, h: 110 * GAME_CONFIG.FIGHTER.SCALE / 2.2 }
+      hitbox: { x: 30, y: -172, w: 37, h: 110 }
     };
 
     // Super Flash effects
@@ -704,6 +579,7 @@ export class Fighter {
         this.currentAttack = null;
         this.activeHitbox = null;
         this.canCancelIntoSpecial = false;
+        this.lungeVx = 0;
 
         if (this.isGrounded) {
           this.state = this.isCrouching ? FIGHTER_STATE.CROUCH : FIGHTER_STATE.IDLE;
@@ -860,6 +736,8 @@ export class Fighter {
   }
 
   recoverFromHit() {
+    // The combo belongs to the attacker: it ends when the defender recovers
+    if (this.opponent) this.opponent.comboCounter = 0;
     this.comboCounter = 0;
     this.state = this.isCrouching ? FIGHTER_STATE.CROUCH : FIGHTER_STATE.IDLE;
     this.playAnimation(this.isCrouching ? 'crouch' : 'idle');
@@ -894,12 +772,19 @@ export class Fighter {
       }
     }
 
-    // Horizontal friction on hit/knockback
+    // Horizontal friction on hit/knockback (dt-scaled: frame-rate independent)
     if (this.state === FIGHTER_STATE.HURT || this.state === FIGHTER_STATE.BLOCK || this.state === FIGHTER_STATE.KNOCKDOWN) {
-      this.vx *= 0.88;
+      this.vx *= Math.pow(0.88, dt / 16.667);
     }
 
     this.x += this.vx * delta;
+
+    // Decaying forward impulse of heavy attacks
+    if (this.lungeVx !== 0) {
+      this.x += this.lungeVx * delta;
+      this.lungeVx *= Math.pow(0.85, dt / 16.667);
+      if (Math.abs(this.lungeVx) < 2) this.lungeVx = 0;
+    }
 
     // Arena Boundaries clamp
     const minX = 70;
@@ -932,7 +817,8 @@ export class Fighter {
   }
 
   getHurtBoxes() {
-    if (this.isInvincible || this.state === FIGHTER_STATE.KNOCKDOWN || this.state === FIGHTER_STATE.GETUP) {
+    if (this.isInvincible || this.state === FIGHTER_STATE.KNOCKDOWN || this.state === FIGHTER_STATE.GETUP ||
+        this.state === FIGHTER_STATE.DEFEAT || this.state === FIGHTER_STATE.VICTORY) {
       return [];
     }
 
