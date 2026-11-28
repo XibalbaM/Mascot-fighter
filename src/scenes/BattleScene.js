@@ -29,6 +29,7 @@ export class BattleScene extends Phaser.Scene {
     this.roundState = 'INTRO';
     this.currentRound = 1;
     this.roundTime = GAME_CONFIG.ROUND_TIME;
+    this.roundToken = 0; // bumped every round/match to invalidate stale callbacks
 
     // 1. Stage Parallax Setup
     this.createStage();
@@ -61,6 +62,12 @@ export class BattleScene extends Phaser.Scene {
     // Escape key listener to return to character select
     this.input.keyboard.on('keydown-Escape', () => {
       this.returnToCharSelect();
+    });
+
+    // Remove the InputManager's window listeners when the scene shuts down,
+    // otherwise they accumulate on every visit to the battle scene.
+    this.events.once(Phaser.Events.SHUTDOWN, () => {
+      this.inputManager?.destroy();
     });
 
     // 5. Start Round 1
@@ -160,6 +167,9 @@ export class BattleScene extends Phaser.Scene {
   }
 
   startRound() {
+    // Invalidate pending callbacks (FIGHT! banner, KO flow...) from a previous round
+    this.roundToken++;
+    const token = this.roundToken;
     this.roundState = 'INTRO';
     this.roundTime = GAME_CONFIG.ROUND_TIME;
     this.pendingKOs = [];
@@ -180,6 +190,7 @@ export class BattleScene extends Phaser.Scene {
     this.ui.showBanner(roundLabel, 'GET READY...', '#ff4757', 900);
 
     this.time.delayedCall(1100, () => {
+      if (token !== this.roundToken) return;
       soundManager.playRoundFight();
       this.ui.showBanner('FIGHT!', '', '#ffa502', 600);
       this.roundState = 'FIGHTING';
@@ -194,10 +205,14 @@ export class BattleScene extends Phaser.Scene {
       this.inputManager.update(dt, this.p1, this.p2, this.gameMode);
       this.aiController.update(dt, this.p2, this.p1, this.gameMode);
 
-      // Decrement Timer
+      // Decrement Timer (training mode never runs out of time)
       this.roundTime -= dt / 1000;
       if (this.roundTime <= 0) {
-        this.handleTimeOver();
+        if (this.gameMode === 'TRAINING') {
+          this.roundTime = GAME_CONFIG.ROUND_TIME;
+        } else {
+          this.handleTimeOver();
+        }
       }
     } else {
       // Freeze input intents during round transitions
@@ -228,7 +243,7 @@ export class BattleScene extends Phaser.Scene {
     }
 
     // 3. Camera Dynamic Tracking
-    this.cameraController.update(this.p1, this.p2);
+    this.cameraController.update(this.p1, this.p2, dt);
 
     // 4. UI & HUD Update
     this.ui.update(this.p1, this.p2, this.roundTime);
@@ -266,46 +281,63 @@ export class BattleScene extends Phaser.Scene {
 
     if (this.roundState === 'ROUND_OVER' || this.roundState === 'MATCH_OVER') return;
     this.roundState = 'ROUND_OVER';
+    const token = this.roundToken;
 
     // Both fighters KO'd on the same frame: DRAW (no round point for anyone)
     if (losers.length >= 2) {
-      this.handleDoubleKO();
+      this.handleDoubleKO(token);
       return;
     }
 
     const loser = losers[0];
     const winner = (loser === this.p1) ? this.p2 : this.p1;
+
+    // Training mode: the dummy gets back up where it fell, the round never ends
+    if (this.gameMode === 'TRAINING') {
+      this.ui.showBanner('K.O.!', 'DUMMY GETS BACK UP', '#70a1ff', 1200);
+      this.time.delayedCall(1300, () => {
+        if (token !== this.roundToken) return;
+        loser.resetRound(loser.x, loser.facing);
+        this.roundState = 'FIGHTING';
+      });
+      return;
+    }
+
     winner.wins++;
 
     const isPerfect = (winner.health === winner.maxHealth);
     this.ui.showBanner('K.O.!', isPerfect ? 'PERFECT VICTORY!' : '', '#ff4757', 1500);
 
     this.time.delayedCall(1600, () => {
+      if (token !== this.roundToken) return;
       winner.triggerVictory();
 
-      if (winner.wins >= GAME_CONFIG.ROUNDS_TO_WIN && this.gameMode !== 'TRAINING') {
+      if (winner.wins >= GAME_CONFIG.ROUNDS_TO_WIN) {
         // Match Over!
         this.roundState = 'MATCH_OVER';
         this.ui.showBanner(`${winner.name} WINS!`, 'CHAMPION!', '#ffa502', 3000);
 
         this.time.delayedCall(3500, () => {
+          if (token !== this.roundToken) return;
           this.restartMatch();
         });
       } else {
         // Next round
         this.currentRound++;
         this.time.delayedCall(1500, () => {
+          if (token !== this.roundToken) return;
           this.startRound();
         });
       }
     });
   }
 
-  handleDoubleKO() {
+  handleDoubleKO(token = this.roundToken) {
     this.ui.showBanner('DOUBLE K.O.!', 'DRAW GAME!', '#70a1ff', 2000);
 
     // Same flow as a time-over draw: nobody scores, next round
     this.time.delayedCall(2400, () => {
+      if (token !== this.roundToken) return;
       this.currentRound++;
       this.startRound();
     });
@@ -328,8 +360,10 @@ export class BattleScene extends Phaser.Scene {
       this.ui.showBanner('TIME OVER', 'DRAW GAME!', '#70a1ff', 2000);
     }
 
+    const token = this.roundToken;
     this.time.delayedCall(2400, () => {
-      if ((this.p1.wins >= GAME_CONFIG.ROUNDS_TO_WIN || this.p2.wins >= GAME_CONFIG.ROUNDS_TO_WIN) && this.gameMode !== 'TRAINING') {
+      if (token !== this.roundToken) return;
+      if (this.p1.wins >= GAME_CONFIG.ROUNDS_TO_WIN || this.p2.wins >= GAME_CONFIG.ROUNDS_TO_WIN) {
         this.restartMatch();
       } else {
         this.currentRound++;
